@@ -1,6 +1,6 @@
 // ── 設定 ──────────────────────────────────────────────────────
 var ARTWORK_NAME = 'artwork-01'
-var STORY_URL = 'https://calligraphy-ar.vercel.app/'
+var STORY_URL = 'https://example.com'
 var YUKAWA_IMAGE = './yukawa.png'
 var APPEAR_MIN = 4
 var APPEAR_MAX = 8
@@ -70,8 +70,6 @@ function showNextDialog() {
 document.addEventListener('click', function(e) {
   if (e.target.id === 'start-btn' || e.target.id === 'enter-btn') return
   if (state.dialogStarted) { showNextDialog(); return }
-
-  // 點螢幕對焦
   var video = document.querySelector('video')
   if (video && video.srcObject) {
     var track = video.srcObject.getVideoTracks()[0]
@@ -84,7 +82,7 @@ document.addEventListener('click', function(e) {
   }
 })
 
-// ── Three.js 場景（獨立 canvas） ──────────────────────────────
+// ── Three.js 場景 ─────────────────────────────────────────────
 var threeRenderer, threeScene, threeCamera
 var yukawaMesh = null
 var glowMesh = null
@@ -92,6 +90,52 @@ var yukawaPos = { x: 0, z: 0 }
 var cameraPos = { x: 0, y: 0, z: 0 }
 var cameraQuat = { x: 0, y: 0, z: 0, w: 1 }
 var cameraProjection = null
+
+function buildMeshes() {
+  // 先放紅色方塊（確保一定有東西顯示）
+  var boxGeo = new THREE.BoxGeometry(0.8, 1.7, 0.1)
+  var boxMat = new THREE.MeshBasicMaterial({ color: 0xff3300 })
+  yukawaMesh = new THREE.Mesh(boxGeo, boxMat)
+  yukawaMesh.visible = false
+  threeScene.add(yukawaMesh)
+
+  // 地板光暈
+  var gGeo = new THREE.CircleGeometry(0.7, 32)
+  var gMat = new THREE.MeshBasicMaterial({
+    color: 0xffd764, transparent: true,
+    opacity: 0.18, side: THREE.DoubleSide, depthWrite: false,
+  })
+  glowMesh = new THREE.Mesh(gGeo, gMat)
+  glowMesh.rotation.x = -Math.PI / 2
+  glowMesh.visible = false
+  threeScene.add(glowMesh)
+
+  // 嘗試載入真實圖片，成功就替換方塊
+  var loader = new THREE.TextureLoader()
+  loader.load(
+    YUKAWA_IMAGE,
+    function(tex) {
+      var aspect = tex.image.width / tex.image.height
+      var h = 1.7
+      var geo = new THREE.PlaneGeometry(h * aspect, h)
+      var mat = new THREE.MeshBasicMaterial({
+        map: tex, transparent: true,
+        side: THREE.DoubleSide, depthWrite: false,
+      })
+      var newMesh = new THREE.Mesh(geo, mat)
+      newMesh.visible = yukawaMesh.visible
+      newMesh.position.copy(yukawaMesh.position)
+      threeScene.remove(yukawaMesh)
+      yukawaMesh = newMesh
+      threeScene.add(yukawaMesh)
+    },
+    undefined,
+    function() {
+      // 圖片載入失敗，繼續用紅色方塊
+      console.log('yukawa.png 載入失敗，使用方塊替代')
+    }
+  )
+}
 
 function initThree() {
   var canvas = document.getElementById('three-canvas')
@@ -117,60 +161,13 @@ function initThree() {
   threeCamera = new THREE.PerspectiveCamera(60, w / h, 0.01, 1000)
   threeScene.add(new THREE.AmbientLight(0xffffff, 2))
 
-  // 載入湯川 PNG
- var loader = new THREE.TextureLoader()
-  loader.load(YUKAWA_IMAGE, function(tex) {
-    console.log('圖片載入成功')
-  }, undefined, function(err) {
-    console.log('圖片載入失敗，改用方塊測試')
-    // 用紅色方塊代替，確認 Three.js 正常
-    var geo = new THREE.BoxGeometry(1, 1.7, 0.1)
-    var mat = new THREE.MeshBasicMaterial({ color: 0xff0000 })
-    yukawaMesh = new THREE.Mesh(geo, mat)
-    yukawaMesh.visible = false
-    threeScene.add(yukawaMesh)
-
-    var gGeo = new THREE.CircleGeometry(0.7, 32)
-    var gMat = new THREE.MeshBasicMaterial({
-      color: 0xffd764, transparent: true,
-      opacity: 0.18, side: THREE.DoubleSide,
-    })
-    glowMesh = new THREE.Mesh(gGeo, gMat)
-    glowMesh.rotation.x = -Math.PI / 2
-    glowMesh.visible = false
-    threeScene.add(glowMesh)
-  })
-    var aspect = tex.image.width / tex.image.height
-    var h2 = 1.7
-    var geo = new THREE.PlaneGeometry(h2 * aspect, h2)
-    var mat = new THREE.MeshBasicMaterial({
-      map: tex, transparent: true,
-      side: THREE.DoubleSide, depthWrite: false,
-    })
-    yukawaMesh = new THREE.Mesh(geo, mat)
-    yukawaMesh.visible = false
-    threeScene.add(yukawaMesh)
-
-    // 光暈
-    var gGeo = new THREE.CircleGeometry(0.7, 32)
-    var gMat = new THREE.MeshBasicMaterial({
-      color: 0xffd764, transparent: true,
-      opacity: 0.18, side: THREE.DoubleSide, depthWrite: false,
-    })
-    glowMesh = new THREE.Mesh(gGeo, gMat)
-    glowMesh.rotation.x = -Math.PI / 2
-    glowMesh.visible = false
-    threeScene.add(glowMesh)
-  })
-
-  // 開始 render loop
+  buildMeshes()
   requestAnimationFrame(renderLoop)
 }
 
 function renderLoop() {
   requestAnimationFrame(renderLoop)
 
-  // 同步相機姿態（由 XR8 pipeline 更新）
   threeCamera.position.set(cameraPos.x, cameraPos.y, cameraPos.z)
   threeCamera.quaternion.set(cameraQuat.x, cameraQuat.y, cameraQuat.z, cameraQuat.w)
   if (cameraProjection) {
@@ -178,12 +175,10 @@ function renderLoop() {
     threeCamera.projectionMatrixInverse.copy(threeCamera.projectionMatrix).invert()
   }
 
-  // 光暈閃爍
   if (glowMesh && glowMesh.visible) {
     glowMesh.material.opacity = 0.12 + Math.sin(Date.now() * 0.003) * 0.07
   }
 
-  // 人物面向相機
   if (yukawaMesh && yukawaMesh.visible) {
     yukawaMesh.lookAt(cameraPos.x, yukawaMesh.position.y, cameraPos.z)
   }
@@ -207,7 +202,7 @@ function onResize() {
   }
 }
 
-// ── XR8 Camera 姿態同步模組 ──────────────────────────────────
+// ── XR8 相機姿態同步 ──────────────────────────────────────────
 function cameraSyncModule() {
   return {
     name: 'camera-sync',
@@ -235,7 +230,6 @@ function cameraSyncModule() {
 // ── 放置湯川 ─────────────────────────────────────────────────
 function placeYukawa() {
   if (!yukawaMesh) { setTimeout(placeYukawa, 300); return }
-  console.log('放置湯川！位置:', yukawaPos)
 
   var angle = Math.random() * Math.PI * 2
   var dist = APPEAR_MIN + Math.random() * (APPEAR_MAX - APPEAR_MIN)
@@ -253,6 +247,7 @@ function placeYukawa() {
   state.yukawaPlaced = true
   scanHint.style.display = 'none'
   foundHint.style.display = 'block'
+
   setTimeout(function() {
     foundHint.style.transition = 'opacity 1s'
     foundHint.style.opacity = '0'
@@ -264,7 +259,7 @@ function placeYukawa() {
     if (state.dialogStarted) { clearInterval(check); return }
     var dx = cameraPos.x - yukawaPos.x
     var dz = cameraPos.z - yukawaPos.z
-    if (Math.sqrt(dx*dx + dz*dz) < TRIGGER_DISTANCE) {
+    if (Math.sqrt(dx * dx + dz * dz) < TRIGGER_DISTANCE) {
       clearInterval(check)
       state.dialogStarted = true
       if (navigator.vibrate) navigator.vibrate([100, 50, 100])
@@ -323,7 +318,7 @@ function onxrloaded() {
   XR8.run({ canvas: document.getElementById('xr-canvas') })
 }
 
-// ── Canvas 尺寸（xr-canvas） ──────────────────────────────────
+// ── Canvas 尺寸 ───────────────────────────────────────────────
 function resizeXrCanvas() {
   var canvas = document.getElementById('xr-canvas')
   var dpr = window.devicePixelRatio || 1
