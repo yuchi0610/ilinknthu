@@ -98,27 +98,26 @@
   <body>
     <canvas id="xr-canvas"></canvas>
 
+    <div id="start-screen" style="
+      position:fixed; top:0; left:0; width:100%; height:100%;
+      background:#000; z-index:999;
+      display:flex; flex-direction:column;
+      align-items:center; justify-content:center;
+      font-family:sans-serif; color:#fff; text-align:center; padding:24px;">
+      <div style="font-size:52px; margin-bottom:16px;">🖌️</div>
+      <h1 style="font-size:22px; font-weight:700; margin-bottom:8px;">書法 AR 體驗</h1>
+      <p style="font-size:14px; opacity:0.6; margin-bottom:32px;">點擊下方按鈕啟動相機</p>
+      <button id="start-btn" style="
+        padding:16px 40px; border-radius:40px; border:none;
+        background:#fff; color:#111;
+        font-size:18px; font-weight:600; cursor:pointer;">
+        啟動 AR
+      </button>
+    </div>
+
     <div id="scan-hint">
       <span class="icon">📷</span>
       <p>將相機對準書法作品</p>
-    </div>
-
-    <div id="target-reticle">
-      <div class="corner tl"></div>
-      <div class="corner tr"></div>
-      <div class="corner bl"></div>
-      <div class="corner br"></div>
-    </div>
-
-    <div id="ar-overlay">
-      <div class="ar-card">
-        <h2>作品辨識成功</h2>
-        <h1 id="artwork-title"></h1>
-        <p id="artwork-desc"></p>
-        <a id="artwork-link" class="ar-btn" href="#" target="_blank" rel="noopener">
-          前往作品網頁 →
-        </a>
-      </div>
     </div>
 
     <script src="app.js"></script>
