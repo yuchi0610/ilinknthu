@@ -82,17 +82,26 @@ function onxrloaded() {
   XR8.run({ canvas: document.getElementById('xr-canvas') })
 }
 
-function startAR() {
-  document.getElementById('start-screen').style.display = 'none'
-  document.getElementById('scan-hint').style.display = 'block'
-
-  // 設定 canvas 實際像素解析度（修正模糊和比例問題）
+function resizeCanvas() {
   var canvas = document.getElementById('xr-canvas')
   var dpr = window.devicePixelRatio || 1
   canvas.width = window.innerWidth * dpr
   canvas.height = window.innerHeight * dpr
   canvas.style.width = window.innerWidth + 'px'
   canvas.style.height = window.innerHeight + 'px'
+}
+
+function startAR() {
+  document.getElementById('start-screen').style.display = 'none'
+  document.getElementById('scan-hint').style.display = 'block'
+
+  resizeCanvas()
+
+  // 手機轉向時重新計算
+  window.addEventListener('resize', resizeCanvas)
+  screen.orientation && screen.orientation.addEventListener('change', function() {
+    setTimeout(resizeCanvas, 200)
+  })
 
   window.XR8 ? onxrloaded() : window.addEventListener('xrloaded', onxrloaded)
 }
