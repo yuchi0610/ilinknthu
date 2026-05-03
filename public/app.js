@@ -2,7 +2,6 @@
 var ARTWORK_NAME = 'artwork-01'
 var STORY_URL = 'https://calligraphy-ar.vercel.app/'
 var YUKAWA_IMAGE = './yukawa.png'
-var TRIGGER_DISTANCE = 1.5
 
 var DIALOGS = [
   '……你來了。我在這裡等了很久。',
@@ -14,6 +13,7 @@ var DIALOGS = [
 // ── 狀態 ──────────────────────────────────────────────────────
 var state = {
   artworkFound: false,
+  yukawaVisible: false,
   dialogStarted: false,
   dialogIndex: 0,
   typing: false,
@@ -69,16 +69,105 @@ document.addEventListener('click', function(e) {
   if (state.dialogStarted) { showNextDialog(); return }
 })
 
-// ── Three.js（純 CSS2D 版本，不依賴 SLAM 相機矩陣） ──────────
-// 策略：不用 Three.js 的 3D 世界座標
-// 改用手機的 DeviceOrientation 控制「湯川」的螢幕位置
-// 讓他看起來像站在現實空間裡
+// ── 掃描倒數 UI ───────────────────────────────────────────────
+function showScanCountdown(onDone) {
+  // 掃描提示
+  foundHint.style.display = 'block'
+  foundHint.style.opacity = '1'
+  foundHint.style.transition = ''
+  foundHint.querySelector('p').textContent = '請將手機環繞展場緩慢掃描...'
 
-var yukawaEl = null  // HTML 元素版的湯川
+  // 建立倒數元素
+  var cdEl = document.createElement('div')
+  cdEl.id = 'scan-countdown'
+  cdEl.style.cssText = [
+    'position:fixed',
+    'top:50%', 'left:50%',
+    'transform:translate(-50%,-50%)',
+    'z-index:300',
+    'text-align:center',
+    'pointer-events:none',
+    'font-family:sans-serif',
+  ].join(';')
+
+  var numEl = document.createElement('div')
+  numEl.style.cssText = [
+    'font-size:80px',
+    'font-weight:700',
+    'color:#ffd764',
+    'line-height:1',
+    'text-shadow:0 0 30px rgba(255,215,100,0.8)',
+    'animation:countPop 0.3s ease',
+  ].join(';')
+
+  var labelEl = document.createElement('div')
+  labelEl.style.cssText = [
+    'font-size:13px',
+    'color:rgba(255,255,255,0.6)',
+    'margin-top:8px',
+    'letter-spacing:0.15em',
+  ].join(';')
+  labelEl.textContent = '掃描中'
+
+  cdEl.appendChild(numEl)
+  cdEl.appendChild(labelEl)
+  document.body.appendChild(cdEl)
+
+  // 加倒數動畫 CSS
+  var style = document.createElement('style')
+  style.innerHTML = '@keyframes countPop{from{transform:scale(1.4);opacity:0.3}to{transform:scale(1);opacity:1}}'
+  document.head.appendChild(style)
+
+  var count = 5
+  numEl.textContent = count
+
+  var timer = setInterval(function() {
+    count--
+    if (count <= 0) {
+      clearInterval(timer)
+      cdEl.remove()
+      foundHint.style.transition = 'opacity 0.5s'
+      foundHint.style.opacity = '0'
+      setTimeout(function() {
+        foundHint.style.display = 'none'
+        onDone()
+      }, 500)
+    } else {
+      numEl.style.animation = 'none'
+      void numEl.offsetWidth // reflow
+      numEl.style.animation = 'countPop 0.3s ease'
+      numEl.textContent = count
+    }
+  }, 1000)
+}
+
+// ── 湯川 HTML 元素 ────────────────────────────────────────────
+var yukawaEl = null
 var glowEl = null
+var yukawaContainer = null
+var deviceAlpha = 0
+var baseAlpha = null
+var yukawaDirection = 0
+
+// alpha 平滑
+var smoothAlpha = 0
+var prevAlpha = 0
+
+function setupDeviceOrientation() {
+  window.addEventListener('deviceorientation', function(e) {
+    var raw = e.alpha || 0
+
+    // 處理 360/0 跨越
+    var diff = raw - prevAlpha
+    if (diff > 180) diff -= 360
+    if (diff < -180) diff += 360
+    smoothAlpha += diff * 0.15  // 低通濾波，減少飄動
+    prevAlpha = raw
+    deviceAlpha = smoothAlpha
+  })
+}
 
 function createYukawaHTML() {
-  // 建立湯川 HTML 元素
   var container = document.createElement('div')
   container.id = 'yukawa-container'
   container.style.cssText = [
@@ -90,63 +179,60 @@ function createYukawaHTML() {
     'overflow:hidden',
   ].join(';')
 
-  // 光暈
   glowEl = document.createElement('div')
   glowEl.style.cssText = [
     'position:absolute',
-    'bottom:15%',
-    'left:50%',
+    'bottom:14%', 'left:50%',
     'transform:translateX(-50%)',
-    'width:120px', 'height:30px',
-    'background:radial-gradient(ellipse, rgba(255,215,100,0.4) 0%, transparent 70%)',
+    'width:130px', 'height:35px',
+    'background:radial-gradient(ellipse, rgba(255,215,100,0.45) 0%, transparent 70%)',
     'border-radius:50%',
-    'animation:glowPulse 2s ease-in-out infinite',
+    'transition:left 0.3s ease',
   ].join(';')
 
-  // 湯川圖片
   yukawaEl = document.createElement('img')
   yukawaEl.src = YUKAWA_IMAGE
   yukawaEl.style.cssText = [
     'position:absolute',
-    'bottom:15%',
-    'left:50%',
+    'bottom:14%', 'left:50%',
     'transform:translateX(-50%)',
-    'height:55vh',
+    'height:58vh',
     'width:auto',
     'object-fit:contain',
-    'filter:drop-shadow(0 0 20px rgba(255,215,100,0.3))',
-    'animation:yukawaFloat 3s ease-in-out infinite',
+    'filter:drop-shadow(0 0 24px rgba(255,215,100,0.35))',
+    'transition:left 0.3s ease, transform 0.3s ease, opacity 0.3s ease',
   ].join(';')
 
   yukawaEl.onerror = function() {
-    // 圖片載入失敗，改用紅色方塊
     yukawaEl.style.display = 'none'
     var box = document.createElement('div')
+    box.id = 'yukawa-box'
     box.style.cssText = [
       'position:absolute',
-      'bottom:15%', 'left:50%',
+      'bottom:14%', 'left:50%',
       'transform:translateX(-50%)',
       'width:80px', 'height:160px',
       'background:#ff3300',
-      'border:2px solid #fff',
+      'transition:left 0.3s ease',
     ].join(';')
     container.appendChild(box)
+    yukawaEl = box
   }
 
   container.appendChild(glowEl)
   container.appendChild(yukawaEl)
   document.body.appendChild(container)
 
-  // 加 CSS 動畫
+  // 浮動動畫
   var style = document.createElement('style')
   style.innerHTML = [
-    '@keyframes yukawaFloat{',
-    '  0%,100%{transform:translateX(-50%) translateY(0)}',
-    '  50%{transform:translateX(-50%) translateY(-8px)}',
+    '@keyframes yukawaAppear{',
+    '  from{opacity:0;transform:translateX(-50%) translateY(30px) scale(0.85)}',
+    '  to{opacity:1;transform:translateX(-50%) translateY(0) scale(1)}',
     '}',
-    '@keyframes glowPulse{',
-    '  0%,100%{opacity:0.4;transform:translateX(-50%) scaleX(1)}',
-    '  50%{opacity:0.9;transform:translateX(-50%) scaleX(1.2)}',
+    '@keyframes glowAnim{',
+    '  0%,100%{opacity:0.5;transform:translateX(-50%) scaleX(1)}',
+    '  50%{opacity:1;transform:translateX(-50%) scaleX(1.25)}',
     '}',
   ].join('')
   document.head.appendChild(style)
@@ -154,41 +240,28 @@ function createYukawaHTML() {
   return container
 }
 
-var yukawaContainer = null
-var deviceAlpha = 0  // 手機朝向角度
-
-function setupDeviceOrientation() {
-  window.addEventListener('deviceorientation', function(e) {
-    deviceAlpha = e.alpha || 0  // 0-360 度，水平旋轉
-  })
-}
-
-// 湯川「站在」展場某個方向
-var yukawaDirection = 0  // 度數，相對於辨識當下手機朝向
-var baseAlpha = null     // 辨識當下的手機朝向
-
 function placeYukawa() {
-  if (!yukawaContainer) return
-
-  // 記錄辨識當下的朝向作為基準
-  baseAlpha = deviceAlpha
-
-  // 隨機選一個方向（左右各 90 度內，讓使用者需要轉身）
-  var offset = (Math.random() > 0.5 ? 1 : -1) * (60 + Math.random() * 60)
+  baseAlpha = smoothAlpha
+  var offset = (Math.random() > 0.5 ? 1 : -1) * (70 + Math.random() * 50)
   yukawaDirection = offset
 
   yukawaContainer.style.display = 'block'
-  state.artworkFound = true
+  yukawaEl.style.animation = 'yukawaAppear 0.8s ease forwards'
+  glowEl.style.animation = 'glowAnim 2.5s ease-in-out infinite'
 
-  scanHint.style.display = 'none'
+  state.yukawaVisible = true
+
+  // 顯示找人提示
+  foundHint.querySelector('p').textContent = '湯川秀樹就在展場某處，試著找到他'
   foundHint.style.display = 'block'
+  foundHint.style.opacity = '1'
+  foundHint.style.transition = ''
   setTimeout(function() {
     foundHint.style.transition = 'opacity 1s'
     foundHint.style.opacity = '0'
     setTimeout(function() { foundHint.style.display = 'none' }, 1000)
-  }, 4000)
+  }, 3500)
 
-  // 開始更新湯川位置
   startPositionUpdate()
 }
 
@@ -196,41 +269,52 @@ function startPositionUpdate() {
   var triggered = false
 
   setInterval(function() {
-    if (!yukawaContainer || baseAlpha === null) return
+    if (!state.yukawaVisible || baseAlpha === null) return
 
-    // 計算手機目前和湯川方向的角度差
-    var diff = deviceAlpha - baseAlpha - yukawaDirection
-    // 正規化到 -180 ~ 180
+    var diff = smoothAlpha - baseAlpha - yukawaDirection
     while (diff > 180) diff -= 360
     while (diff < -180) diff += 360
 
-    // 把角度差轉成螢幕 X 位置
-    // diff = 0 → 正中間
-    // diff = ±90 → 螢幕邊緣外
-    var screenX = 50 - diff * 0.8  // 百分比
+    var screenX = 50 - diff * 0.75
+    screenX = Math.max(5, Math.min(95, screenX))
 
-    // 距離感：diff 越大，湯川越小
     var absDiff = Math.abs(diff)
-    var scale = Math.max(0.3, 1 - absDiff / 150)
-    var opacity = Math.max(0.1, 1 - absDiff / 120)
+    var scale = Math.max(0.5, 1 - absDiff / 180)
+    var opacity = Math.max(0.15, 1 - absDiff / 110)
+
+    var transform = 'translateX(-50%) scale(' + scale + ')'
 
     if (yukawaEl) {
       yukawaEl.style.left = screenX + '%'
-      yukawaEl.style.transform = 'translateX(-50%) scale(' + scale + ')'
+      yukawaEl.style.transform = transform
       yukawaEl.style.opacity = opacity
     }
     if (glowEl) {
       glowEl.style.left = screenX + '%'
-      glowEl.style.opacity = opacity * 0.6
+      glowEl.style.opacity = opacity * 0.7
     }
 
-    // 夠近（diff < 20 度）觸發對話
-    if (!triggered && absDiff < 20) {
+    // 夠近觸發對話
+    if (!triggered && absDiff < 18 && state.yukawaVisible) {
       triggered = true
       if (navigator.vibrate) navigator.vibrate([100, 50, 100])
-      dialogBox.classList.add('visible')
-      state.dialogStarted = true
-      showNextDialog()
+
+      // 湯川停在中間
+      if (yukawaEl) {
+        yukawaEl.style.left = '50%'
+        yukawaEl.style.transform = 'translateX(-50%) scale(1)'
+        yukawaEl.style.opacity = '1'
+      }
+      if (glowEl) {
+        glowEl.style.left = '50%'
+        glowEl.style.opacity = '0.8'
+      }
+
+      setTimeout(function() {
+        dialogBox.classList.add('visible')
+        state.dialogStarted = true
+        showNextDialog()
+      }, 600)
     }
   }, 50)
 }
@@ -244,8 +328,14 @@ function buildImageTargetModule() {
         event: 'reality.imagefound',
         process: function(e) {
           if (state.artworkFound || e.detail.name !== ARTWORK_NAME) return
+          state.artworkFound = true
           if (navigator.vibrate) navigator.vibrate(200)
-          setTimeout(placeYukawa, 800)
+          scanHint.style.display = 'none'
+
+          // 先倒數掃描，再出現湯川
+          showScanCountdown(function() {
+            placeYukawa()
+          })
         },
       },
     ],
@@ -267,18 +357,15 @@ fetch('./image-targets/' + ARTWORK_NAME + '/' + ARTWORK_NAME + '.json')
 
 function onxrloaded() {
   if (targetDataLoaded.length === 0) { setTimeout(onxrloaded, 200); return }
-
   XR8.XrController.configure({
     imageTargetData: targetDataLoaded,
     disableWorldTracking: true,
   })
-
   XR8.addCameraPipelineModules([
     XR8.GlTextureRenderer.pipelineModule(),
     XR8.XrController.pipelineModule(),
     buildImageTargetModule(),
   ])
-
   XR8.run({ canvas: document.getElementById('xr-canvas') })
 }
 
@@ -296,16 +383,13 @@ function resizeCanvas() {
 function startAR() {
   document.getElementById('start-screen').style.display = 'none'
   scanHint.style.display = 'block'
-
   yukawaContainer = createYukawaHTML()
   setupDeviceOrientation()
-
   resizeCanvas()
   window.addEventListener('resize', resizeCanvas)
   screen.orientation && screen.orientation.addEventListener('change', function() {
     setTimeout(resizeCanvas, 200)
   })
-
   window.XR8 ? onxrloaded() : window.addEventListener('xrloaded', onxrloaded)
 }
 
