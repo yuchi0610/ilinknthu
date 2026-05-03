@@ -3,7 +3,7 @@ var ARTWORKS = [
     name: 'artwork-01',
     title: '世界は一つ',
     desc: '湯川秀樹',
-    url: 'https://your-website.com',
+    url: 'https://calligraphy-ar.vercel.app/',
   },
 ]
 
