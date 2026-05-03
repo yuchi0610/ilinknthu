@@ -85,7 +85,15 @@ function onxrloaded() {
 function startAR() {
   document.getElementById('start-screen').style.display = 'none'
   document.getElementById('scan-hint').style.display = 'block'
+
+  // 設定 canvas 實際像素解析度（修正模糊和比例問題）
+  var canvas = document.getElementById('xr-canvas')
+  var dpr = window.devicePixelRatio || 1
+  canvas.width = window.innerWidth * dpr
+  canvas.height = window.innerHeight * dpr
+  canvas.style.width = window.innerWidth + 'px'
+  canvas.style.height = window.innerHeight + 'px'
+
   window.XR8 ? onxrloaded() : window.addEventListener('xrloaded', onxrloaded)
 }
-
 document.getElementById('start-btn').addEventListener('click', startAR)
