@@ -118,8 +118,28 @@ function initThree() {
   threeScene.add(new THREE.AmbientLight(0xffffff, 2))
 
   // 載入湯川 PNG
-  var loader = new THREE.TextureLoader()
+ var loader = new THREE.TextureLoader()
   loader.load(YUKAWA_IMAGE, function(tex) {
+    console.log('圖片載入成功')
+  }, undefined, function(err) {
+    console.log('圖片載入失敗，改用方塊測試')
+    // 用紅色方塊代替，確認 Three.js 正常
+    var geo = new THREE.BoxGeometry(1, 1.7, 0.1)
+    var mat = new THREE.MeshBasicMaterial({ color: 0xff0000 })
+    yukawaMesh = new THREE.Mesh(geo, mat)
+    yukawaMesh.visible = false
+    threeScene.add(yukawaMesh)
+
+    var gGeo = new THREE.CircleGeometry(0.7, 32)
+    var gMat = new THREE.MeshBasicMaterial({
+      color: 0xffd764, transparent: true,
+      opacity: 0.18, side: THREE.DoubleSide,
+    })
+    glowMesh = new THREE.Mesh(gGeo, gMat)
+    glowMesh.rotation.x = -Math.PI / 2
+    glowMesh.visible = false
+    threeScene.add(glowMesh)
+  })
     var aspect = tex.image.width / tex.image.height
     var h2 = 1.7
     var geo = new THREE.PlaneGeometry(h2 * aspect, h2)
