@@ -12,6 +12,7 @@ var artworkTitle = document.getElementById('artwork-title')
 var artworkDesc = document.getElementById('artwork-desc')
 var artworkLink = document.getElementById('artwork-link')
 var scanHint = document.getElementById('scan-hint')
+var focusBtn = document.getElementById('focus-btn')
 
 function showOverlay(artwork) {
   artworkTitle.textContent = artwork.title
@@ -25,6 +26,22 @@ function hideOverlay() {
   overlay.classList.remove('visible')
   scanHint.style.opacity = '1'
 }
+
+// 對焦按鈕
+focusBtn.addEventListener('click', function() {
+  focusBtn.classList.add('focusing')
+  setTimeout(function() { focusBtn.classList.remove('focusing') }, 500)
+  // 觸發相機重新對焦（部分裝置支援）
+  if (navigator.mediaDevices && navigator.mediaDevices.getUserMedia) {
+    var video = document.querySelector('video')
+    if (video && video.srcObject) {
+      var track = video.srcObject.getVideoTracks()[0]
+      if (track && track.getCapabilities && track.getCapabilities().focusMode) {
+        track.applyConstraints({ advanced: [{ focusMode: 'single-shot' }] })
+      }
+    }
+  }
+})
 
 function buildImageTargetModule() {
   return {
@@ -62,23 +79,20 @@ Promise.all(fetchPromises)
   .then(function(results) { targetDataLoaded = results })
   .catch(function(err) {
     document.getElementById('scan-hint').innerHTML =
-      '<p style="color:red;padding:16px;font-size:14px;">錯誤：' + err.message + '</p>'
+      '<p style="color:red;">錯誤：' + err.message + '</p>'
   })
 
 function onxrloaded() {
   if (targetDataLoaded.length === 0) { setTimeout(onxrloaded, 200); return }
-
   XR8.XrController.configure({
     imageTargetData: targetDataLoaded,
     disableWorldTracking: true,
   })
-
   XR8.addCameraPipelineModules([
     XR8.GlTextureRenderer.pipelineModule(),
     XR8.XrController.pipelineModule(),
     buildImageTargetModule(),
   ])
-
   XR8.run({ canvas: document.getElementById('xr-canvas') })
 }
 
@@ -93,11 +107,10 @@ function resizeCanvas() {
 
 function startAR() {
   document.getElementById('start-screen').style.display = 'none'
-  document.getElementById('scan-hint').style.display = 'block'
+  scanHint.style.display = 'block'
+  focusBtn.style.display = 'block'
 
   resizeCanvas()
-
-  // 手機轉向時重新計算
   window.addEventListener('resize', resizeCanvas)
   screen.orientation && screen.orientation.addEventListener('change', function() {
     setTimeout(resizeCanvas, 200)
@@ -105,4 +118,5 @@ function startAR() {
 
   window.XR8 ? onxrloaded() : window.addEventListener('xrloaded', onxrloaded)
 }
+
 document.getElementById('start-btn').addEventListener('click', startAR)
