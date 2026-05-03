@@ -214,7 +214,11 @@ function cameraSyncModule() {
 
 // ── 放置湯川 ─────────────────────────────────────────────────
 function placeYukawa() {
-  if (!yukawaMesh) { setTimeout(placeYukawa, 300); return }
+  if (!yukawaMesh) {
+    console.log('yukawaMesh 還沒好，等待中...')
+    setTimeout(placeYukawa, 300); return
+  }
+  console.log('放置湯川！位置:', yukawaPos)
 
   var angle = Math.random() * Math.PI * 2
   var dist = APPEAR_MIN + Math.random() * (APPEAR_MAX - APPEAR_MIN)
