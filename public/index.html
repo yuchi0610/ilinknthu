@@ -10,12 +10,22 @@
       * { margin: 0; padding: 0; box-sizing: border-box; }
       html, body { width: 100%; height: 100%; overflow: hidden; background: #000; }
 
-      canvas {
+      /* 底層：相機 canvas（8th Wall 控制） */
+      #xr-canvas {
         position: fixed; top: 0; left: 0;
         width: 100% !important; height: 100% !important;
+        z-index: 0;
       }
 
-      /* ── 開始畫面 ── */
+      /* 上層：Three.js canvas（透明背景） */
+      #three-canvas {
+        position: fixed; top: 0; left: 0;
+        width: 100% !important; height: 100% !important;
+        z-index: 1;
+        pointer-events: none;
+      }
+
+      /* UI 層 */
       #start-screen {
         position: fixed; top: 0; left: 0; width: 100%; height: 100%;
         background: #080808;
@@ -33,7 +43,6 @@
       #start-screen h1 {
         font-size: 19px; font-weight: 700;
         line-height: 1.8; margin-bottom: 48px;
-        color: #e8e0d0;
       }
       #start-btn {
         padding: 14px 44px;
@@ -43,73 +52,60 @@
         font-size: 14px; letter-spacing: 0.2em;
         font-family: 'Noto Serif TC', serif;
         cursor: pointer;
-        transition: all 0.3s;
       }
       #start-btn:active { background: rgba(232,224,208,0.1); }
 
-      /* ── 掃描提示 ── */
       #scan-hint {
         position: fixed; bottom: 48px; left: 0; right: 0;
-        text-align: center; color: #fff;
-        z-index: 100; pointer-events: none;
-        font-family: 'Noto Serif TC', serif;
+        text-align: center;
+        z-index: 200; pointer-events: none;
         display: none; padding: 0 28px;
         transition: opacity 0.6s;
       }
       #scan-hint p {
-        font-size: 13px; line-height: 1.8; opacity: 0.9;
+        font-size: 13px; line-height: 1.8; color: #fff;
         background: rgba(0,0,0,0.55);
         backdrop-filter: blur(12px);
         -webkit-backdrop-filter: blur(12px);
         border: 1px solid rgba(255,255,255,0.08);
         border-radius: 8px; padding: 14px 20px;
+        font-family: 'Noto Serif TC', serif;
       }
 
-      /* ── 找到湯川提示 ── */
       #found-hint {
         position: fixed; top: 48px; left: 0; right: 0;
-        text-align: center; color: #fff;
-        z-index: 100; pointer-events: none;
-        font-family: 'Noto Serif TC', serif;
+        text-align: center;
+        z-index: 200; pointer-events: none;
         display: none; padding: 0 28px;
-        animation: fadeIn 1s ease;
       }
       #found-hint p {
-        font-size: 13px; line-height: 1.8; opacity: 0.9;
+        font-size: 13px; line-height: 1.8;
         background: rgba(0,0,0,0.55);
         backdrop-filter: blur(12px);
         -webkit-backdrop-filter: blur(12px);
         border: 1px solid rgba(255,215,100,0.2);
         border-radius: 8px; padding: 12px 20px;
         color: #ffd764;
+        font-family: 'Noto Serif TC', serif;
       }
 
-      /* ── RPG 對話框 ── */
       #dialog-box {
         display: none;
         position: fixed; bottom: 0; left: 0; right: 0;
         z-index: 300;
-        padding: 0 0 env(safe-area-inset-bottom);
-        animation: slideUp 0.4s ease;
       }
       #dialog-box.visible { display: block; }
-      @keyframes slideUp {
-        from { opacity: 0; transform: translateY(30px); }
-        to { opacity: 1; transform: translateY(0); }
-      }
-
       .dialog-inner {
         background: rgba(8,8,8,0.92);
         backdrop-filter: blur(20px);
         -webkit-backdrop-filter: blur(20px);
         border-top: 1px solid rgba(255,215,100,0.2);
-        padding: 24px 28px 32px;
+        padding: 24px 28px 40px;
       }
       .dialog-name {
-        font-family: 'Noto Serif TC', serif;
         font-size: 12px; letter-spacing: 0.2em;
-        color: #ffd764; margin-bottom: 12px;
-        opacity: 0.8;
+        color: #ffd764; margin-bottom: 12px; opacity: 0.8;
+        font-family: sans-serif;
       }
       .dialog-text {
         font-family: 'Noto Serif TC', serif;
@@ -117,31 +113,21 @@
         color: #e8e0d0; min-height: 60px;
       }
       .dialog-cursor {
-        display: inline-block;
-        width: 2px; height: 16px;
-        background: #ffd764;
-        margin-left: 2px;
+        display: inline-block; width: 2px; height: 16px;
+        background: #ffd764; margin-left: 2px;
         vertical-align: middle;
         animation: blink 0.8s infinite;
       }
-      @keyframes blink {
-        0%, 100% { opacity: 1; }
-        50% { opacity: 0; }
-      }
+      @keyframes blink { 0%,100%{opacity:1} 50%{opacity:0} }
       .dialog-next {
-        margin-top: 20px;
-        text-align: right;
-        font-family: sans-serif;
+        margin-top: 16px; text-align: right;
         font-size: 12px; color: #ffd764;
         opacity: 0.6; letter-spacing: 0.1em;
         animation: pulse 1.5s infinite;
+        font-family: sans-serif;
       }
-      @keyframes pulse {
-        0%, 100% { opacity: 0.4; }
-        50% { opacity: 0.9; }
-      }
+      @keyframes pulse { 0%,100%{opacity:0.4} 50%{opacity:0.9} }
 
-      /* ── 進入故事按鈕 ── */
       #enter-btn {
         display: none;
         position: fixed; bottom: 48px; left: 50%;
@@ -154,22 +140,24 @@
         color: #ffd764;
         font-family: 'Noto Serif TC', serif;
         font-size: 15px; letter-spacing: 0.15em;
-        cursor: pointer;
-        animation: fadeIn 0.8s ease, glow 2s infinite;
-        white-space: nowrap;
-      }
-      @keyframes fadeIn {
-        from { opacity: 0; } to { opacity: 1; }
+        cursor: pointer; white-space: nowrap;
+        animation: glow 2s infinite;
       }
       @keyframes glow {
-        0%, 100% { box-shadow: 0 0 8px rgba(255,215,100,0.2); }
-        50% { box-shadow: 0 0 20px rgba(255,215,100,0.5); }
+        0%,100%{ box-shadow: 0 0 8px rgba(255,215,100,0.2); }
+        50%{ box-shadow: 0 0 20px rgba(255,215,100,0.5); }
       }
     </style>
   </head>
   <body>
+
+    <!-- 底層：相機畫面 -->
     <canvas id="xr-canvas"></canvas>
 
+    <!-- 上層：Three.js 3D -->
+    <canvas id="three-canvas"></canvas>
+
+    <!-- UI -->
     <div id="start-screen">
       <p class="label">互動展覽 · AR 體驗</p>
       <h1>核去核從<br>核能背後的和平抉擇</h1>
@@ -188,14 +176,13 @@
       <div class="dialog-inner">
         <p class="dialog-name">湯川 秀樹</p>
         <p class="dialog-text" id="dialog-text"></p>
-        <p class="dialog-next" id="dialog-next">點擊繼續 ▼</p>
+        <p class="dialog-next" id="dialog-next" style="display:none">點擊繼續 ▼</p>
       </div>
     </div>
 
     <button id="enter-btn">進 入 故 事 →</button>
 
     <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/@8thwall/xrextras@latest/dist/xrextras.js"></script>
     <script src="app.js"></script>
     <script
       src="https://cdn.jsdelivr.net/npm/@8thwall/engine-binary@1/dist/xr.js"
