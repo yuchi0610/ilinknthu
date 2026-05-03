@@ -105,4 +105,6 @@ function onxrloaded() {
   XR8.run({ canvas: document.getElementById('xr-canvas') })
 }
 
-window.XR8 ? onxrloaded() : window.addEventListener('xrloaded', onxrloaded)
+function startAR() {
+  window.XR8 ? onxrloaded() : window.addEventListener('xrloaded', onxrloaded)
+}
