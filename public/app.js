@@ -231,12 +231,11 @@ function cameraSyncModule() {
 function placeYukawa() {
   if (!yukawaMesh) { setTimeout(placeYukawa, 300); return }
 
-  var angle = Math.random() * Math.PI * 2
-  var dist = APPEAR_MIN + Math.random() * (APPEAR_MAX - APPEAR_MIN)
-  yukawaPos.x = cameraPos.x + Math.sin(angle) * dist
-  yukawaPos.z = cameraPos.z - Math.cos(angle) * dist
+  // 測試：直接放在相機正前方 2 公尺
+  yukawaPos.x = 0
+  yukawaPos.z = -2
 
-  yukawaMesh.position.set(yukawaPos.x, 0.85, yukawaPos.z)
+  yukawaMesh.position.set(0, 0, -2)
   yukawaMesh.visible = true
 
   if (glowMesh) {
