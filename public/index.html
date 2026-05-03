@@ -3,12 +3,11 @@
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1, user-scalable=no" />
-    <title>書法 AR 體驗</title>
+    <title>核去核從：核能背後的和平抉擇</title>
     <style>
       * { margin: 0; padding: 0; box-sizing: border-box; }
       html, body { width: 100%; height: 100%; overflow: hidden; background: #000; }
 
-      /* 讓 engine 控制 canvas，不要自己設寬高 */
       canvas {
         position: fixed;
         top: 0; left: 0;
@@ -16,49 +15,119 @@
         height: 100% !important;
       }
 
+      /* 開始畫面 */
       #start-screen {
         position: fixed; top: 0; left: 0; width: 100%; height: 100%;
-        background: #111;
+        background: #0a0a0a;
         z-index: 500;
         display: flex; flex-direction: column;
         align-items: center; justify-content: center;
-        font-family: sans-serif; color: #fff; text-align: center; padding: 24px;
+        font-family: sans-serif; color: #fff;
+        text-align: center; padding: 32px;
       }
-      #start-screen h1 { font-size: 22px; margin-bottom: 8px; }
-      #start-screen p { font-size: 14px; opacity: 0.6; margin-bottom: 32px; }
+      #start-screen .subtitle {
+        font-size: 12px;
+        letter-spacing: 0.2em;
+        opacity: 0.4;
+        margin-bottom: 16px;
+        text-transform: uppercase;
+      }
+      #start-screen h1 {
+        font-size: 20px;
+        font-weight: 700;
+        line-height: 1.5;
+        margin-bottom: 32px;
+        max-width: 280px;
+      }
       #start-btn {
-        padding: 16px 40px; border-radius: 40px; border: none;
-        background: #fff; color: #111;
-        font-size: 18px; font-weight: 600; cursor: pointer;
+        padding: 16px 48px;
+        border-radius: 40px; border: 1px solid rgba(255,255,255,0.3);
+        background: transparent; color: #fff;
+        font-size: 16px; font-weight: 500;
+        cursor: pointer; letter-spacing: 0.05em;
+        transition: background 0.2s;
       }
+      #start-btn:active { background: rgba(255,255,255,0.15); }
 
+      /* 掃描提示 */
       #scan-hint {
-        position: fixed; top: 50%; left: 50%;
-        transform: translate(-50%, -50%);
+        position: fixed;
+        bottom: 160px; left: 0; right: 0;
         text-align: center; color: #fff;
         z-index: 100; pointer-events: none;
-        font-family: sans-serif; display: none;
+        font-family: sans-serif;
+        display: none;
+        padding: 0 32px;
         transition: opacity 0.5s;
       }
-      #scan-hint .icon { font-size: 52px; margin-bottom: 12px; display: block; animation: float 2s ease-in-out infinite; }
-      #scan-hint p { font-size: 16px; opacity: 0.85; }
-      @keyframes float {
-        0%, 100% { transform: translateY(0); }
-        50% { transform: translateY(-8px); }
+      #scan-hint p {
+        font-size: 14px;
+        line-height: 1.7;
+        opacity: 0.85;
+        background: rgba(0,0,0,0.45);
+        backdrop-filter: blur(8px);
+        -webkit-backdrop-filter: blur(8px);
+        border-radius: 12px;
+        padding: 14px 18px;
       }
 
+      /* 對焦按鈕 */
+      #focus-btn {
+        display: none;
+        position: fixed;
+        bottom: 80px; left: 50%;
+        transform: translateX(-50%);
+        z-index: 150;
+        width: 60px; height: 60px;
+        border-radius: 50%;
+        border: 2px solid rgba(255,255,255,0.6);
+        background: rgba(255,255,255,0.15);
+        backdrop-filter: blur(8px);
+        -webkit-backdrop-filter: blur(8px);
+        cursor: pointer;
+        transition: background 0.15s, transform 0.1s;
+      }
+      #focus-btn:active {
+        background: rgba(255,255,255,0.35);
+        transform: translateX(-50%) scale(0.93);
+      }
+      #focus-btn::after {
+        content: '';
+        position: absolute;
+        top: 50%; left: 50%;
+        transform: translate(-50%, -50%);
+        width: 20px; height: 20px;
+        border: 2px solid #fff;
+        border-radius: 3px;
+      }
+      /* 對焦動畫 */
+      #focus-btn.focusing {
+        border-color: #4eff91;
+      }
+      #focus-btn.focusing::after {
+        border-color: #4eff91;
+        animation: focusPulse 0.4s ease;
+      }
+      @keyframes focusPulse {
+        0% { transform: translate(-50%, -50%) scale(1.3); opacity: 0.5; }
+        100% { transform: translate(-50%, -50%) scale(1); opacity: 1; }
+      }
+
+      /* 結果卡片 */
       #ar-overlay {
         display: none; position: fixed;
         bottom: 0; left: 0; right: 0;
-        padding: 0 24px 48px;
+        padding: 0 20px 40px;
         z-index: 200; flex-direction: column; align-items: center;
       }
       #ar-overlay.visible { display: flex; }
       .ar-card {
-        width: 100%; max-width: 400px;
-        background: rgba(0,0,0,0.75);
-        border: 1px solid rgba(255,255,255,0.2);
-        border-radius: 20px; padding: 20px 24px;
+        width: 100%; max-width: 420px;
+        background: rgba(10,10,10,0.82);
+        backdrop-filter: blur(20px);
+        -webkit-backdrop-filter: blur(20px);
+        border: 1px solid rgba(255,255,255,0.15);
+        border-radius: 20px; padding: 22px 24px;
         color: #fff; font-family: sans-serif;
         animation: slideUp 0.4s ease;
       }
@@ -66,15 +135,20 @@
         from { opacity: 0; transform: translateY(20px); }
         to { opacity: 1; transform: translateY(0); }
       }
-      .ar-card h2 { font-size: 13px; opacity: 0.55; margin-bottom: 6px; font-weight: 400; }
-      .ar-card h1 { font-size: 24px; font-weight: 700; margin-bottom: 4px; }
+      .ar-card .tag {
+        font-size: 11px; letter-spacing: 0.15em;
+        opacity: 0.45; margin-bottom: 8px;
+        text-transform: uppercase;
+      }
+      .ar-card h1 { font-size: 22px; font-weight: 700; margin-bottom: 4px; }
       .ar-card p { font-size: 13px; opacity: 0.5; margin-bottom: 20px; }
       .ar-btn {
         display: block; width: 100%; padding: 14px;
         border-radius: 12px; border: none;
         background: #fff; color: #111;
-        font-size: 16px; font-weight: 600;
+        font-size: 15px; font-weight: 600;
         text-align: center; text-decoration: none;
+        letter-spacing: 0.02em;
       }
     </style>
   </head>
@@ -82,23 +156,23 @@
     <canvas id="xr-canvas"></canvas>
 
     <div id="start-screen">
-      <div style="font-size:52px;margin-bottom:16px;">🖌️</div>
-      <h1>書法 AR 體驗</h1>
-      <p>點擊下方按鈕啟動相機</p>
-      <button id="start-btn">啟動 AR</button>
+      <p class="subtitle">互動展覽</p>
+      <h1>核去核從：核能背後的和平抉擇</h1>
+      <button id="start-btn">進入體驗</button>
     </div>
 
     <div id="scan-hint">
-      <span class="icon">📷</span>
-      <p>將相機對準書法作品</p>
+      <p>在展場中尋找湯川秀樹的書法橫批，將相機對準作品，感受這位諾貝爾物理學家對和平的深切期盼。</p>
     </div>
+
+    <button id="focus-btn" title="對焦"></button>
 
     <div id="ar-overlay">
       <div class="ar-card">
-        <h2>作品辨識成功</h2>
+        <p class="tag">展品辨識成功</p>
         <h1 id="artwork-title"></h1>
         <p id="artwork-desc"></p>
-        <a id="artwork-link" class="ar-btn" href="#" target="_blank" rel="noopener">前往作品網頁 →</a>
+        <a id="artwork-link" class="ar-btn" href="#" target="_blank" rel="noopener">了解更多 →</a>
       </div>
     </div>
 
