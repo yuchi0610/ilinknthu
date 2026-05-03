@@ -1,6 +1,6 @@
 // ── 設定 ──────────────────────────────────────────────────────
 var ARTWORK_NAME = 'artwork-01'
-var STORY_URL = 'https://example.com'
+var STORY_URL = 'https://calligraphy-ar.vercel.app/'
 var YUKAWA_IMAGE = './yukawa.png'
 var TRIGGER_DISTANCE = 1.5
 
