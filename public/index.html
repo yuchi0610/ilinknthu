@@ -15,12 +15,6 @@
         width: 100% !important; height: 100% !important;
         z-index: 0;
       }
-      #three-canvas {
-        position: fixed; top: 0; left: 0;
-        width: 100% !important; height: 100% !important;
-        z-index: 1;
-        pointer-events: none;
-      }
 
       #start-screen {
         position: fixed; top: 0; left: 0; width: 100%; height: 100%;
@@ -124,8 +118,8 @@
     </style>
   </head>
   <body>
+    <!-- 單一 canvas，Three.js 共用 8th Wall 的 WebGL context -->
     <canvas id="xr-canvas"></canvas>
-    <canvas id="three-canvas"></canvas>
 
     <div id="start-screen">
       <p class="label">互動展覽 · AR 體驗</p>
