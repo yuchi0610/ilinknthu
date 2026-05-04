@@ -169,15 +169,6 @@ function threePipelineModule() {
         camera.position.set(reality.position.x, reality.position.y, reality.position.z)
       }
 
-      // 人物 Y 軸跟隨相機高度，防止 SLAM 漂移造成人物看起來移動
-      if (yukawaMesh && yukawaMesh.visible) {
-        var charY = camera.position.y - 0.6
-        yukawaMesh.position.y = charY
-        if (glowMesh && glowMesh.visible) {
-          glowMesh.position.y = camera.position.y - 1.5
-        }
-      }
-
       // 光暈動畫
       if (glowMesh && glowMesh.visible) {
         glowMesh.material.opacity = 0.15 + Math.sin(Date.now() * 0.003) * 0.08
@@ -265,21 +256,23 @@ function loadYukawa(scene) {
 function placeYukawa() {
   if (!yukawaMesh) { setTimeout(placeYukawa, 300); return }
 
-  var camPos = scene3 ? scene3.camera.position : { x: 0, z: 0 }
+  var cam = scene3 ? scene3.camera : null
+  var camPos = cam ? cam.position : { x: 0, y: 0, z: 0 }
   var angle = Math.random() * Math.PI * 2
   var dist = 3 + Math.random() * 2
 
   var x = camPos.x + Math.sin(angle) * dist
   var z = camPos.z - Math.cos(angle) * dist
+  var y = camPos.y - 0.6  // 以當下相機高度定位，之後不再更新
 
   yukawaPos.x = x
   yukawaPos.z = z
 
-  yukawaMesh.position.set(x, 0, z)
+  yukawaMesh.position.set(x, y, z)
   yukawaMesh.visible = true
 
   if (glowMesh) {
-    glowMesh.position.set(x, -0.84, z)
+    glowMesh.position.set(x, y - 0.9, z)
     glowMesh.visible = true
   }
 
