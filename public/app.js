@@ -109,7 +109,8 @@ var scene3 = null  // { scene, camera, renderer }
 var yukawaMesh = null
 var glowMesh = null
 var yukawaPos = { x: 0, z: 0 }
-var refCamY = null  // session 一開始的相機 Y，用來估算地面高度
+var refCamY = null
+var artworkWorldPos = null  // 展品在世界座標的位置，用來估算地面與放置方向
 
 function threePipelineModule() {
   return {
@@ -269,15 +270,30 @@ function placeYukawa() {
 
   var cam = scene3 ? scene3.camera : null
   var camPos = cam ? cam.position : { x: 0, y: 0, z: 0 }
-  var angle = Math.random() * Math.PI * 2
   var dist = 3 + Math.random() * 2
+
+  // 方向：放在展品反方向的半圓內（±90°），避免穿牆或卡在展品後
+  var angle
+  if (artworkWorldPos) {
+    var wallAngle = Math.atan2(
+      artworkWorldPos.x - camPos.x,
+      camPos.z - artworkWorldPos.z
+    )
+    angle = wallAngle + Math.PI + (Math.random() - 0.5) * Math.PI
+  } else {
+    angle = Math.random() * Math.PI * 2
+  }
 
   var x = camPos.x + Math.sin(angle) * dist
   var z = camPos.z - Math.cos(angle) * dist
-  // 用 session 最初的相機 Y 估算地面（避免掃描展品時舉高手機導致偏差）
-  // refCamY ≈ 0，地面約在 -1.2m，人物中心在 -0.3m
-  var baseY = refCamY !== null ? refCamY : camPos.y
-  var y = baseY - 0.3
+
+  // Y：以展品高度推算地面（展品通常掛在距地 1.5m 處，人物中心在 0.9m）
+  var y
+  if (artworkWorldPos) {
+    y = artworkWorldPos.y - 1.5 + 0.9  // = artworkWorldPos.y - 0.6
+  } else {
+    y = (refCamY !== null ? refCamY : camPos.y) - 0.3
+  }
 
   yukawaPos.x = x
   yukawaPos.z = z
@@ -313,6 +329,7 @@ function buildImageTargetModule() {
         process: function(e) {
           if (state.artworkFound || e.detail.name !== ARTWORK_NAME) return
           state.artworkFound = true
+          artworkWorldPos = e.detail.position  // 記錄展品世界座標
           if (navigator.vibrate) navigator.vibrate(200)
           scanHint.style.display = 'none'
           showScanCountdown(function() { placeYukawa() })
