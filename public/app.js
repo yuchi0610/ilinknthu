@@ -117,11 +117,6 @@ function threePipelineModule() {
     onStart: function(args) {
       var canvas = args.canvas
       var GLctx = args.GLctx
-      // debug
-      document.body.insertAdjacentHTML('beforeend',
-        '<div style="position:fixed;top:0;left:0;z-index:9999;background:red;color:#fff;font-size:12px;padding:4px;">' +
-        'onStart called. GLctx=' + (GLctx ? 'YES' : 'NO') + '</div>'
-      )
       var canvasWidth = args.canvasWidth
       var canvasHeight = args.canvasHeight
 
@@ -204,19 +199,6 @@ function threePipelineModule() {
 
     onRender: function() {
       if (!scene3) return
-      // 強制在畫面正中間畫一個紅色方塊測試
-      if (yukawaMesh) {
-        var cam = scene3.camera
-        // 把方塊放在相機前方 2 公尺（不管 SLAM）
-        var dir = new THREE.Vector3(0, 0, -2)
-        dir.applyQuaternion(cam.quaternion)
-        yukawaMesh.position.copy(cam.position).add(dir)
-        yukawaMesh.visible = true
-        if (glowMesh) {
-          glowMesh.position.copy(yukawaMesh.position)
-          glowMesh.visible = true
-        }
-      }
       scene3.renderer.clearDepth()
       scene3.renderer.render(scene3.scene, scene3.camera)
     },
@@ -345,10 +327,10 @@ function onxrloaded() {
     disableWorldTracking: false,
   })
 
- XR8.addCameraPipelineModules([
+  XR8.addCameraPipelineModules([
     XR8.XrController.pipelineModule(),
-    threePipelineModule(),
     XR8.GlTextureRenderer.pipelineModule(),
+    threePipelineModule(),
     buildImageTargetModule(),
   ])
 
