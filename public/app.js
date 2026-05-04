@@ -159,7 +159,7 @@ function threePipelineModule() {
         var delta = targetAngle - cur
         while (delta > Math.PI) delta -= 2 * Math.PI
         while (delta < -Math.PI) delta += 2 * Math.PI
-        yukawaMesh.rotation.set(0, cur + delta * 0.15, 0)
+        yukawaMesh.rotation.set(0, cur + delta * 0.05, 0)
       }
 
       // 靠近偵測
@@ -246,7 +246,7 @@ function placeYukawa() {
   if (fwd.length() < 0.1) fwd.set(0, 0, -1)
   fwd.normalize()
 
-  var dist = 2.5
+  var dist = 4.0
   var x = cam.position.x + fwd.x * dist
   var z = cam.position.z + fwd.z * dist
   var y = cam.position.y - 0.6
