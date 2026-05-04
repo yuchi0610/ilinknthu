@@ -11,8 +11,6 @@ var DIALOGS = [
 ]
 
 // ── 狀態 ──────────────────────────────────────────────────────
-var TRIGGER_DISTANCE = 1.5
-
 var state = {
   artworkFound: false,
   yukawaPlaced: false,
@@ -21,6 +19,9 @@ var state = {
   typing: false,
 }
 
+// 圖像錨點（從 imagefound / imageupdated 更新）
+var artworkAnchor = { pos: null, rot: null, updatedAt: 0 }
+
 // ── UI ────────────────────────────────────────────────────────
 var scanHint   = document.getElementById('scan-hint')
 var foundHint  = document.getElementById('found-hint')
@@ -28,9 +29,6 @@ var dialogBox  = document.getElementById('dialog-box')
 var dialogText = document.getElementById('dialog-text')
 var dialogNext = document.getElementById('dialog-next')
 var enterBtn   = document.getElementById('enter-btn')
-var summonArea = document.getElementById('summon-area')
-var summonHint = document.getElementById('summon-hint')
-var summonBtn  = document.getElementById('summon-btn')
 
 // ── 對話系統 ──────────────────────────────────────────────────
 var typingTimer = null
@@ -74,18 +72,11 @@ document.addEventListener('click', function(e) {
   if (state.dialogStarted) { showNextDialog() }
 })
 
-// ── 召喚按鈕 ──────────────────────────────────────────────────
-function showSummonButton() {
-  summonHint.textContent = '請緩慢環顧展場空間，完成後召喚湯川'
-  summonArea.style.display = 'block'
-}
-
 // ── Three.js（共用 GLctx 方式） ───────────────────────────────
-var scene3 = null  // { scene, camera, renderer }
+var scene3 = null
 var yukawaMesh = null
 var glowMesh = null
 var yukawaPos = { x: 0, z: 0 }
-var minCamY = null  // session 中觀測到的最低相機 Y，用來估算地面
 
 function threePipelineModule() {
   return {
@@ -102,7 +93,6 @@ function threePipelineModule() {
       scene.add(camera)
       scene.add(new THREE.AmbientLight(0xffffff, 2.5))
 
-      // 共用 8th Wall 的 WebGL context
       var renderer = new THREE.WebGLRenderer({
         canvas: canvas,
         context: GLctx,
@@ -114,14 +104,12 @@ function threePipelineModule() {
 
       scene3 = { scene: scene, camera: camera, renderer: renderer }
 
-      // 設定初始相機位置並同步
       camera.position.set(0, 3, 0)
       XR8.XrController.updateCameraProjectionMatrix({
         origin: camera.position,
         facing: camera.quaternion,
       })
 
-      // 載入湯川
       loadYukawa(scene)
     },
 
@@ -129,11 +117,6 @@ function threePipelineModule() {
       if (!args.processCpuResult || !args.processCpuResult.reality) return
       var reality = args.processCpuResult.reality
       var camera = scene3.camera
-
-      // 追蹤最低相機 Y（走動時的自然持握高度 ≈ 最接近地面）
-      if (reality.position && (minCamY === null || reality.position.y < minCamY)) {
-        minCamY = reality.position.y
-      }
 
       // 更新投影矩陣
       if (reality.intrinsics) {
@@ -156,7 +139,24 @@ function threePipelineModule() {
         glowMesh.material.opacity = 0.15 + Math.sin(Date.now() * 0.003) * 0.08
       }
 
-      // 人物面向相機（死區 3° + lerp，過濾 SLAM 微小雜訊）
+      // 錨點更新：將人物 lerp 到展品旁固定偏移（錨點最近 500ms 內有效）
+      if (state.yukawaPlaced && artworkAnchor.pos && (Date.now() - artworkAnchor.updatedAt) < 500) {
+        var targetPos = computeYukawaTarget()
+        if (targetPos) {
+          yukawaMesh.position.lerp(targetPos, 0.05)
+          if (glowMesh) {
+            glowMesh.position.set(
+              yukawaMesh.position.x,
+              yukawaMesh.position.y - 0.9,
+              yukawaMesh.position.z
+            )
+          }
+          yukawaPos.x = yukawaMesh.position.x
+          yukawaPos.z = yukawaMesh.position.z
+        }
+      }
+
+      // 人物面向相機（lerp + 3° 死區）
       if (yukawaMesh && yukawaMesh.visible) {
         var dx = camera.position.x - yukawaMesh.position.x
         var dz = camera.position.z - yukawaMesh.position.z
@@ -165,7 +165,7 @@ function threePipelineModule() {
         var delta = targetAngle - cur
         while (delta > Math.PI) delta -= 2 * Math.PI
         while (delta < -Math.PI) delta += 2 * Math.PI
-        if (Math.abs(delta) > 0.05) {  // 3° 死區，低於此不更新
+        if (Math.abs(delta) > 0.05) {
           yukawaMesh.rotation.set(0, cur + delta * 0.05, 0)
         }
       }
@@ -201,15 +201,49 @@ function threePipelineModule() {
   }
 }
 
+// ── 從錨點計算湯川目標位置 ────────────────────────────────────
+function computeYukawaTarget() {
+  var p = artworkAnchor.pos
+  var q = artworkAnchor.rot
+  if (!p || !q) return null
+
+  // 展品法線（牆面朝外方向）
+  var normal = new THREE.Vector3(0, 0, 1).applyQuaternion(
+    new THREE.Quaternion(q.x, q.y, q.z, q.w)
+  )
+  normal.y = 0
+  if (normal.length() < 0.01) normal.set(0, 0, 1)
+  normal.normalize()
+
+  // 人物中心：展品前方 1.5m，Y 軸：展品 Y - 0.5
+  // （展品掛牆約 1.4m 高，人物中心 ≈ 地面 + 0.9m，故 artwork.y - 0.5）
+  return new THREE.Vector3(
+    p.x + normal.x * 1.5,
+    p.y - 0.5,
+    p.z + normal.z * 1.5
+  )
+}
+
+// ── 驗證並提取錨點資料 ────────────────────────────────────────
+function extractAnchor(detail) {
+  var p = detail.position
+  var r = detail.rotation
+  if (!p || !r) return false
+  if (!isFinite(p.x) || !isFinite(p.y) || !isFinite(p.z)) return false
+  if (!isFinite(r.x) || !isFinite(r.y) || !isFinite(r.z) || !isFinite(r.w)) return false
+  artworkAnchor.pos = { x: p.x, y: p.y, z: p.z }
+  artworkAnchor.rot = { x: r.x, y: r.y, z: r.z, w: r.w }
+  artworkAnchor.updatedAt = Date.now()
+  return true
+}
+
 function loadYukawa(scene) {
-  // 紅色方塊 fallback
   var geo = new THREE.BoxGeometry(0.7, 2.2, 0.05)
   var mat = new THREE.MeshBasicMaterial({ color: 0xff3300 })
   yukawaMesh = new THREE.Mesh(geo, mat)
   yukawaMesh.visible = false
   scene.add(yukawaMesh)
 
-  // 光暈
   var gGeo = new THREE.CircleGeometry(0.6, 32)
   var gMat = new THREE.MeshBasicMaterial({
     color: 0xffd764, transparent: true,
@@ -220,7 +254,6 @@ function loadYukawa(scene) {
   glowMesh.visible = false
   scene.add(glowMesh)
 
-  // 嘗試載入 PNG
   var loader = new THREE.TextureLoader()
   loader.load(YUKAWA_IMAGE, function(tex) {
     var aspect = tex.image.width / tex.image.height
@@ -245,36 +278,21 @@ function loadYukawa(scene) {
 function placeYukawa() {
   if (!yukawaMesh) { setTimeout(placeYukawa, 300); return }
 
-  var cam = scene3 ? scene3.camera : null
-  if (!cam) { setTimeout(placeYukawa, 300); return }
+  var target = computeYukawaTarget()
+  if (!target) { setTimeout(placeYukawa, 300); return }
 
-  // 人物放在相機正前方水平 2.5m，保證使用者按下按鈕時看得到
-  var fwd = new THREE.Vector3(0, 0, -1).applyQuaternion(cam.quaternion)
-  fwd.y = 0
-  if (fwd.length() < 0.1) fwd.set(0, 0, -1)
-  fwd.normalize()
-
-  var dist = 4.0
-  var x = cam.position.x + fwd.x * dist
-  var z = cam.position.z + fwd.z * dist
-  // minCamY 是觀測到的最低相機高度（自然持握 ≈ 1.0-1.2m 離地）
-  // 地面 ≈ minCamY - 1.1，人物中心 = 地面 + 0.9*(角色高/2)
-  var base = minCamY !== null ? minCamY : cam.position.y
-  var y = base - 1.1 + 0.9  // = base - 0.2
-
-  yukawaPos.x = x
-  yukawaPos.z = z
-
-  yukawaMesh.position.set(x, y, z)
+  yukawaMesh.position.copy(target)
   yukawaMesh.visible = true
 
+  yukawaPos.x = target.x
+  yukawaPos.z = target.z
+
   if (glowMesh) {
-    glowMesh.position.set(x, y - 0.9, z)
+    glowMesh.position.set(target.x, target.y - 0.9, target.z)
     glowMesh.visible = true
   }
 
   state.yukawaPlaced = true
-  summonArea.style.display = 'none'
 
   foundHint.querySelector('p').textContent = '湯川秀樹出現了，試著走近他'
   foundHint.style.display = 'block'
@@ -295,11 +313,20 @@ function buildImageTargetModule() {
       {
         event: 'reality.imagefound',
         process: function(e) {
-          if (state.artworkFound || e.detail.name !== ARTWORK_NAME) return
+          if (e.detail.name !== ARTWORK_NAME) return
+          if (!extractAnchor(e.detail)) return
+          if (state.artworkFound) return
           state.artworkFound = true
           if (navigator.vibrate) navigator.vibrate(200)
           scanHint.style.display = 'none'
-          showSummonButton()
+          placeYukawa()
+        },
+      },
+      {
+        event: 'reality.imageupdated',
+        process: function(e) {
+          if (e.detail.name !== ARTWORK_NAME) return
+          extractAnchor(e.detail)
         },
       },
     ],
@@ -361,6 +388,3 @@ function startAR() {
 
 document.getElementById('start-btn').addEventListener('click', startAR)
 enterBtn.addEventListener('click', function() { window.location.href = STORY_URL })
-summonBtn.addEventListener('click', function() {
-  if (!state.yukawaPlaced) placeYukawa()
-})
