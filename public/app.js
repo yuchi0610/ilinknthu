@@ -109,8 +109,7 @@ var scene3 = null  // { scene, camera, renderer }
 var yukawaMesh = null
 var glowMesh = null
 var yukawaPos = { x: 0, z: 0 }
-var refCamY = null
-var artworkWorldPos = null  // 展品在世界座標的位置，用來估算地面與放置方向
+var wallFacingQuat = null  // 辨識展品瞬間的相機朝向，用來判斷牆壁方向
 
 function threePipelineModule() {
   return {
@@ -154,11 +153,6 @@ function threePipelineModule() {
       if (!args.processCpuResult || !args.processCpuResult.reality) return
       var reality = args.processCpuResult.reality
       var camera = scene3.camera
-
-      // 記錄 session 最初的相機 Y，作為地面估算基準
-      if (refCamY === null && reality.position) {
-        refCamY = reality.position.y
-      }
 
       // 更新投影矩陣
       if (reality.intrinsics) {
@@ -272,13 +266,13 @@ function placeYukawa() {
   var camPos = cam ? cam.position : { x: 0, y: 0, z: 0 }
   var dist = 3 + Math.random() * 2
 
-  // 方向：放在展品反方向的半圓內（±90°），避免穿牆或卡在展品後
+  // 方向：用辨識展品瞬間的相機朝向推算牆壁方向，人物放在反方向 ±90°
   var angle
-  if (artworkWorldPos) {
-    var wallAngle = Math.atan2(
-      artworkWorldPos.x - camPos.x,
-      camPos.z - artworkWorldPos.z
-    )
+  if (wallFacingQuat) {
+    var fwd = new THREE.Vector3(0, 0, -1).applyQuaternion(wallFacingQuat)
+    fwd.y = 0
+    fwd.normalize()
+    var wallAngle = Math.atan2(fwd.x, -fwd.z)
     angle = wallAngle + Math.PI + (Math.random() - 0.5) * Math.PI
   } else {
     angle = Math.random() * Math.PI * 2
@@ -286,14 +280,7 @@ function placeYukawa() {
 
   var x = camPos.x + Math.sin(angle) * dist
   var z = camPos.z - Math.cos(angle) * dist
-
-  // Y：以展品高度推算地面（展品通常掛在距地 1.5m 處，人物中心在 0.9m）
-  var y
-  if (artworkWorldPos) {
-    y = artworkWorldPos.y - 1.5 + 0.9  // = artworkWorldPos.y - 0.6
-  } else {
-    y = (refCamY !== null ? refCamY : camPos.y) - 0.3
-  }
+  var y = camPos.y - 0.6  // 相機約在 1.5m 高，人物中心在 0.9m
 
   yukawaPos.x = x
   yukawaPos.z = z
@@ -329,7 +316,7 @@ function buildImageTargetModule() {
         process: function(e) {
           if (state.artworkFound || e.detail.name !== ARTWORK_NAME) return
           state.artworkFound = true
-          artworkWorldPos = e.detail.position  // 記錄展品世界座標
+          if (scene3) wallFacingQuat = scene3.camera.quaternion.clone()
           if (navigator.vibrate) navigator.vibrate(200)
           scanHint.style.display = 'none'
           showScanCountdown(function() { placeYukawa() })
