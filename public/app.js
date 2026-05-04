@@ -169,16 +169,25 @@ function threePipelineModule() {
         camera.position.set(reality.position.x, reality.position.y, reality.position.z)
       }
 
+      // 人物 Y 軸跟隨相機高度，防止 SLAM 漂移造成人物看起來移動
+      if (yukawaMesh && yukawaMesh.visible) {
+        var charY = camera.position.y - 0.6
+        yukawaMesh.position.y = charY
+        if (glowMesh && glowMesh.visible) {
+          glowMesh.position.y = camera.position.y - 1.5
+        }
+      }
+
       // 光暈動畫
       if (glowMesh && glowMesh.visible) {
         glowMesh.material.opacity = 0.15 + Math.sin(Date.now() * 0.003) * 0.08
       }
 
-      // 人物面向相機
+      // 人物永遠面向相機（重置 X/Z 防止累積偏轉）
       if (yukawaMesh && yukawaMesh.visible) {
         var dx = camera.position.x - yukawaMesh.position.x
         var dz = camera.position.z - yukawaMesh.position.z
-        yukawaMesh.rotation.y = Math.atan2(dx, dz)
+        yukawaMesh.rotation.set(0, Math.atan2(dx, dz), 0)
       }
 
       // 靠近偵測
@@ -214,7 +223,7 @@ function threePipelineModule() {
 
 function loadYukawa(scene) {
   // 紅色方塊 fallback
-  var geo = new THREE.BoxGeometry(0.6, 1.7, 0.05)
+  var geo = new THREE.BoxGeometry(0.6, 1.8, 0.05)
   var mat = new THREE.MeshBasicMaterial({ color: 0xff3300 })
   yukawaMesh = new THREE.Mesh(geo, mat)
   yukawaMesh.visible = false
@@ -235,7 +244,7 @@ function loadYukawa(scene) {
   var loader = new THREE.TextureLoader()
   loader.load(YUKAWA_IMAGE, function(tex) {
     var aspect = tex.image.width / tex.image.height
-    var h = 1.7
+    var h = 1.8
     var pGeo = new THREE.PlaneGeometry(h * aspect, h)
     var pMat = new THREE.MeshBasicMaterial({
       map: tex, transparent: true,
@@ -258,7 +267,7 @@ function placeYukawa() {
 
   var camPos = scene3 ? scene3.camera.position : { x: 0, z: 0 }
   var angle = Math.random() * Math.PI * 2
-  var dist = 4 + Math.random() * 4
+  var dist = 3 + Math.random() * 2
 
   var x = camPos.x + Math.sin(angle) * dist
   var z = camPos.z - Math.cos(angle) * dist
