@@ -3,6 +3,7 @@ var ARTWORK_NAME = 'artwork-01'
 var STORY_URL = 'https://calligraphy-ar.vercel.app/'
 var YUKAWA_IMAGE = './yukawa.png'
 var TRIGGER_DISTANCE = 1.5
+var SCAN_THRESHOLD = 1.2  // 累積移動距離（公尺）達到後放置人物
 
 var DIALOGS = [
   '……你來了。我在這裡等了很久。',
@@ -18,6 +19,12 @@ var state = {
   dialogStarted: false,
   dialogIndex: 0,
   typing: false,
+}
+
+var scanState = {
+  active: false,
+  lastPos: null,
+  totalMove: 0,
 }
 
 // ── UI ────────────────────────────────────────────────────────
@@ -104,6 +111,17 @@ function showScanCountdown(onDone) {
   }, 1000)
 }
 
+// ── 空間掃描 ──────────────────────────────────────────────────
+function startSpaceScan() {
+  scanState.active = true
+  scanState.lastPos = null
+  scanState.totalMove = 0
+  foundHint.querySelector('p').textContent = '請緩慢環顧展場空間，讓手機掃描四周...'
+  foundHint.style.display = 'block'
+  foundHint.style.opacity = '1'
+  foundHint.style.transition = ''
+}
+
 // ── Three.js（共用 GLctx 方式） ───────────────────────────────
 var scene3 = null  // { scene, camera, renderer }
 var yukawaMesh = null
@@ -170,6 +188,32 @@ function threePipelineModule() {
         camera.position.set(reality.position.x, reality.position.y, reality.position.z)
       }
 
+      // 空間掃描進度追蹤
+      if (scanState.active && reality.position) {
+        var rp = reality.position
+        if (scanState.lastPos) {
+          var mdx = rp.x - scanState.lastPos.x
+          var mdz = rp.z - scanState.lastPos.z
+          scanState.totalMove += Math.sqrt(mdx * mdx + mdz * mdz)
+          var pct = Math.min(100, Math.round(scanState.totalMove / SCAN_THRESHOLD * 100))
+          var hint = foundHint.querySelector('p')
+          hint.textContent = '掃描空間中　' + pct + '%'
+          if (scanState.totalMove >= SCAN_THRESHOLD) {
+            scanState.active = false
+            hint.textContent = '掃描完成！'
+            setTimeout(function() {
+              foundHint.style.transition = 'opacity 0.5s'
+              foundHint.style.opacity = '0'
+              setTimeout(function() {
+                foundHint.style.display = 'none'
+                placeYukawa()
+              }, 500)
+            }, 800)
+          }
+        }
+        scanState.lastPos = { x: rp.x, z: rp.z }
+      }
+
       // 光暈動畫
       if (glowMesh && glowMesh.visible) {
         glowMesh.material.opacity = 0.15 + Math.sin(Date.now() * 0.003) * 0.08
@@ -220,7 +264,7 @@ function threePipelineModule() {
 
 function loadYukawa(scene) {
   // 紅色方塊 fallback
-  var geo = new THREE.BoxGeometry(0.6, 1.8, 0.05)
+  var geo = new THREE.BoxGeometry(0.7, 2.2, 0.05)
   var mat = new THREE.MeshBasicMaterial({ color: 0xff3300 })
   yukawaMesh = new THREE.Mesh(geo, mat)
   yukawaMesh.visible = false
@@ -241,7 +285,7 @@ function loadYukawa(scene) {
   var loader = new THREE.TextureLoader()
   loader.load(YUKAWA_IMAGE, function(tex) {
     var aspect = tex.image.width / tex.image.height
-    var h = 1.8
+    var h = 2.2
     var pGeo = new THREE.PlaneGeometry(h * aspect, h)
     var pMat = new THREE.MeshBasicMaterial({
       map: tex, transparent: true,
@@ -264,7 +308,7 @@ function placeYukawa() {
 
   var cam = scene3 ? scene3.camera : null
   var camPos = cam ? cam.position : { x: 0, y: 0, z: 0 }
-  var dist = 3 + Math.random() * 2
+  var dist = 2 + Math.random() * 1.5
 
   // 方向：用辨識展品瞬間的相機朝向推算牆壁方向，人物放在反方向 ±90°
   var angle
@@ -319,7 +363,7 @@ function buildImageTargetModule() {
           if (scene3) wallFacingQuat = scene3.camera.quaternion.clone()
           if (navigator.vibrate) navigator.vibrate(200)
           scanHint.style.display = 'none'
-          showScanCountdown(function() { placeYukawa() })
+          startSpaceScan()
         },
       },
     ],
