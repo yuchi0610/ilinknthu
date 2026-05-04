@@ -345,10 +345,10 @@ function onxrloaded() {
     disableWorldTracking: false,
   })
 
-  XR8.addCameraPipelineModules([
-    XR8.GlTextureRenderer.pipelineModule(),
-    threePipelineModule(),
+ XR8.addCameraPipelineModules([
     XR8.XrController.pipelineModule(),
+    threePipelineModule(),
+    XR8.GlTextureRenderer.pipelineModule(),
     buildImageTargetModule(),
   ])
 
