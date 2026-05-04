@@ -117,6 +117,11 @@ function threePipelineModule() {
     onStart: function(args) {
       var canvas = args.canvas
       var GLctx = args.GLctx
+      // debug
+      document.body.insertAdjacentHTML('beforeend',
+        '<div style="position:fixed;top:0;left:0;z-index:9999;background:red;color:#fff;font-size:12px;padding:4px;">' +
+        'onStart called. GLctx=' + (GLctx ? 'YES' : 'NO') + '</div>'
+      )
       var canvasWidth = args.canvasWidth
       var canvasHeight = args.canvasHeight
 
