@@ -101,6 +101,25 @@
       }
       @keyframes pulse { 0%,100%{opacity:0.4} 50%{opacity:0.9} }
 
+      #summon-area {
+        position: fixed; bottom: 48px; left: 0; right: 0;
+        z-index: 300; text-align: center; padding: 0 28px;
+      }
+      #summon-hint {
+        font-size: 13px; color: #ffd764; margin-bottom: 16px;
+        font-family: 'Noto Serif TC', serif;
+        text-shadow: 0 0 12px rgba(255,215,100,0.6);
+      }
+      #summon-btn {
+        padding: 16px 48px; border-radius: 2px;
+        border: 1px solid rgba(255,215,100,0.6);
+        background: rgba(255,215,100,0.12); color: #ffd764;
+        font-family: 'Noto Serif TC', serif;
+        font-size: 15px; letter-spacing: 0.2em; cursor: pointer;
+        animation: glow 2s infinite;
+      }
+      #summon-btn:active { background: rgba(255,215,100,0.25); }
+
       #enter-btn {
         display: none; position: fixed; bottom: 48px; left: 50%;
         transform: translateX(-50%); z-index: 400;
@@ -144,6 +163,11 @@
     </div>
 
     <button id="enter-btn">進 入 故 事 →</button>
+
+    <div id="summon-area" style="display:none">
+      <p id="summon-hint"></p>
+      <button id="summon-btn">召 喚 湯 川</button>
+    </div>
 
     <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
     <script src="app.js"></script>

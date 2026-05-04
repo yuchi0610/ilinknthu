@@ -3,9 +3,6 @@ var ARTWORK_NAME = 'artwork-01'
 var STORY_URL = 'https://calligraphy-ar.vercel.app/'
 var YUKAWA_IMAGE = './yukawa.png'
 var TRIGGER_DISTANCE = 1.5
-var SCAN_THRESHOLD = 2.5  // 累積移動距離（公尺）達到後放置人物
-var SCAN_STEP_MIN = 0.01  // 每幀最小位移（公尺），過濾 SLAM 雜訊
-
 var DIALOGS = [
   '……你來了。我在這裡等了很久。',
   '這幅字，是我晚年寫下的。世界是一體的——不論是原子，還是人心。',
@@ -14,18 +11,14 @@ var DIALOGS = [
 ]
 
 // ── 狀態 ──────────────────────────────────────────────────────
+var TRIGGER_DISTANCE = 1.5
+
 var state = {
   artworkFound: false,
   yukawaPlaced: false,
   dialogStarted: false,
   dialogIndex: 0,
   typing: false,
-}
-
-var scanState = {
-  active: false,
-  lastPos: null,
-  totalMove: 0,
 }
 
 // ── UI ────────────────────────────────────────────────────────
@@ -35,6 +28,9 @@ var dialogBox  = document.getElementById('dialog-box')
 var dialogText = document.getElementById('dialog-text')
 var dialogNext = document.getElementById('dialog-next')
 var enterBtn   = document.getElementById('enter-btn')
+var summonArea = document.getElementById('summon-area')
+var summonHint = document.getElementById('summon-hint')
+var summonBtn  = document.getElementById('summon-btn')
 
 // ── 對話系統 ──────────────────────────────────────────────────
 var typingTimer = null
@@ -78,49 +74,10 @@ document.addEventListener('click', function(e) {
   if (state.dialogStarted) { showNextDialog() }
 })
 
-// ── 倒數掃描 ─────────────────────────────────────────────────
-function showScanCountdown(onDone) {
-  foundHint.style.display = 'block'
-  foundHint.style.opacity = '1'
-  foundHint.style.transition = ''
-  foundHint.querySelector('p').textContent = '請將手機環繞展場緩慢掃描...'
-
-  var cdEl = document.createElement('div')
-  cdEl.style.cssText = 'position:fixed;top:50%;left:50%;transform:translate(-50%,-50%);z-index:300;text-align:center;pointer-events:none;'
-  var numEl = document.createElement('div')
-  numEl.style.cssText = 'font-size:88px;font-weight:700;color:#ffd764;line-height:1;text-shadow:0 0 40px rgba(255,215,100,0.9);font-family:sans-serif;'
-  var labelEl = document.createElement('div')
-  labelEl.style.cssText = 'font-size:13px;color:rgba(255,255,255,0.55);margin-top:10px;letter-spacing:0.2em;font-family:sans-serif;'
-  labelEl.textContent = '掃描中'
-  cdEl.appendChild(numEl)
-  cdEl.appendChild(labelEl)
-  document.body.appendChild(cdEl)
-
-  var count = 5
-  numEl.textContent = count
-  var timer = setInterval(function() {
-    count--
-    if (count <= 0) {
-      clearInterval(timer)
-      cdEl.remove()
-      foundHint.style.transition = 'opacity 0.5s'
-      foundHint.style.opacity = '0'
-      setTimeout(function() { foundHint.style.display = 'none'; onDone() }, 500)
-    } else {
-      numEl.textContent = count
-    }
-  }, 1000)
-}
-
-// ── 空間掃描 ──────────────────────────────────────────────────
-function startSpaceScan() {
-  scanState.active = true
-  scanState.lastPos = null
-  scanState.totalMove = 0
-  foundHint.querySelector('p').textContent = '請緩慢環顧展場空間，讓手機掃描四周...'
-  foundHint.style.display = 'block'
-  foundHint.style.opacity = '1'
-  foundHint.style.transition = ''
+// ── 召喚按鈕 ──────────────────────────────────────────────────
+function showSummonButton() {
+  summonHint.textContent = '請緩慢環顧展場空間，完成後召喚湯川'
+  summonArea.style.display = 'block'
 }
 
 // ── Three.js（共用 GLctx 方式） ───────────────────────────────
@@ -128,7 +85,6 @@ var scene3 = null  // { scene, camera, renderer }
 var yukawaMesh = null
 var glowMesh = null
 var yukawaPos = { x: 0, z: 0 }
-var wallFacingQuat = null  // 辨識展品瞬間的相機朝向，用來判斷牆壁方向
 
 function threePipelineModule() {
   return {
@@ -187,33 +143,6 @@ function threePipelineModule() {
       }
       if (reality.position) {
         camera.position.set(reality.position.x, reality.position.y, reality.position.z)
-      }
-
-      // 空間掃描進度追蹤
-      if (scanState.active && reality.position) {
-        var rp = reality.position
-        if (scanState.lastPos) {
-          var mdx = rp.x - scanState.lastPos.x
-          var mdz = rp.z - scanState.lastPos.z
-          var step = Math.sqrt(mdx * mdx + mdz * mdz)
-          if (step > SCAN_STEP_MIN) scanState.totalMove += step  // 過濾靜止雜訊
-          var pct = Math.min(100, Math.round(scanState.totalMove / SCAN_THRESHOLD * 100))
-          var hint = foundHint.querySelector('p')
-          hint.textContent = '掃描空間中　' + pct + '%'
-          if (scanState.totalMove >= SCAN_THRESHOLD) {
-            scanState.active = false
-            hint.textContent = '掃描完成！'
-            setTimeout(function() {
-              foundHint.style.transition = 'opacity 0.5s'
-              foundHint.style.opacity = '0'
-              setTimeout(function() {
-                foundHint.style.display = 'none'
-                placeYukawa()
-              }, 500)
-            }, 800)
-          }
-        }
-        scanState.lastPos = { x: rp.x, z: rp.z }
       }
 
       // 光暈動畫
@@ -309,29 +238,18 @@ function placeYukawa() {
   if (!yukawaMesh) { setTimeout(placeYukawa, 300); return }
 
   var cam = scene3 ? scene3.camera : null
-  var camPos = cam ? cam.position : { x: 0, y: 0, z: 0 }
-  var dist = 2 + Math.random() * 1.5
+  if (!cam) { setTimeout(placeYukawa, 300); return }
 
-  // 方向：用辨識展品瞬間的相機朝向推算牆壁方向，人物放在反方向 ±90°
-  var angle
-  if (wallFacingQuat) {
-    var fwd = new THREE.Vector3(0, 0, -1).applyQuaternion(wallFacingQuat)
-    fwd.y = 0
-    // 若相機當時朝正上/下（掃描高處展品），水平分量接近 0 → 改用隨機方向
-    if (fwd.length() > 0.15) {
-      fwd.normalize()
-      var wallAngle = Math.atan2(fwd.x, -fwd.z)
-      angle = wallAngle + Math.PI + (Math.random() - 0.5) * Math.PI
-    } else {
-      angle = Math.random() * Math.PI * 2
-    }
-  } else {
-    angle = Math.random() * Math.PI * 2
-  }
+  // 人物放在相機正前方水平 2.5m，保證使用者按下按鈕時看得到
+  var fwd = new THREE.Vector3(0, 0, -1).applyQuaternion(cam.quaternion)
+  fwd.y = 0
+  if (fwd.length() < 0.1) fwd.set(0, 0, -1)
+  fwd.normalize()
 
-  var x = camPos.x + Math.sin(angle) * dist
-  var z = camPos.z - Math.cos(angle) * dist
-  var y = camPos.y - 0.6  // 相機約在 1.5m 高，人物中心在 0.9m
+  var dist = 2.5
+  var x = cam.position.x + fwd.x * dist
+  var z = cam.position.z + fwd.z * dist
+  var y = cam.position.y - 0.6
 
   yukawaPos.x = x
   yukawaPos.z = z
@@ -345,8 +263,9 @@ function placeYukawa() {
   }
 
   state.yukawaPlaced = true
+  summonArea.style.display = 'none'
 
-  foundHint.querySelector('p').textContent = '湯川秀樹就在展場某處，試著找到他'
+  foundHint.querySelector('p').textContent = '湯川秀樹出現了，試著走近他'
   foundHint.style.display = 'block'
   foundHint.style.opacity = '1'
   foundHint.style.transition = ''
@@ -367,10 +286,9 @@ function buildImageTargetModule() {
         process: function(e) {
           if (state.artworkFound || e.detail.name !== ARTWORK_NAME) return
           state.artworkFound = true
-          if (scene3) wallFacingQuat = scene3.camera.quaternion.clone()
           if (navigator.vibrate) navigator.vibrate(200)
           scanHint.style.display = 'none'
-          startSpaceScan()
+          showSummonButton()
         },
       },
     ],
@@ -432,3 +350,6 @@ function startAR() {
 
 document.getElementById('start-btn').addEventListener('click', startAR)
 enterBtn.addEventListener('click', function() { window.location.href = STORY_URL })
+summonBtn.addEventListener('click', function() {
+  if (!state.yukawaPlaced) placeYukawa()
+})
