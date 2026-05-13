@@ -53,7 +53,7 @@ function SortableRow({ scene, selected, onSelect, onDelete }: {
       onClick={onSelect}
       className={`border rounded-xl px-4 py-3 flex items-center gap-3 group cursor-pointer transition-all ${
         selected
-          ? 'bg-stone-900 border-stone-700'
+          ? 'bg-stone-100 border-stone-400 shadow-sm'
           : 'bg-white border-stone-200 hover:border-stone-400 hover:shadow-sm'
       }`}
     >
@@ -61,23 +61,24 @@ function SortableRow({ scene, selected, onSelect, onDelete }: {
         {...attributes}
         {...listeners}
         onClick={e => e.stopPropagation()}
-        className={`cursor-grab active:cursor-grabbing touch-none text-base ${selected ? 'text-stone-500' : 'text-stone-300 hover:text-stone-500'}`}
+        className={`cursor-grab active:cursor-grabbing touch-none text-base ${selected ? 'text-stone-400' : 'text-stone-300 hover:text-stone-500'}`}
       >
         ⠿
       </button>
 
       <span className={`w-5 text-center text-xs font-mono ${selected ? 'text-stone-500' : 'text-stone-300'}`}>{scene.order}</span>
+
       <span className={`w-2 h-2 rounded-full flex-shrink-0 ${TYPE_DOT[scene.type]}`} />
 
       <div className="flex-1 min-w-0">
-        <p className={`text-sm font-medium truncate ${selected ? 'text-white' : 'text-stone-800'}`}>{scene.title}</p>
-        <p className={`text-xs ${selected ? 'text-stone-400' : 'text-stone-400'}`}>{TYPE_LABEL[scene.type]}</p>
+        <p className={`text-sm font-medium truncate ${selected ? 'text-stone-900' : 'text-stone-800'}`}>{scene.title}</p>
+        <p className="text-xs text-stone-400">{TYPE_LABEL[scene.type]}</p>
       </div>
 
       <span className={`text-xs px-2 py-0.5 rounded-full border flex-shrink-0 ${
         scene.visible
-          ? selected ? 'bg-emerald-900/40 text-emerald-400 border-emerald-700' : 'bg-emerald-50 text-emerald-600 border-emerald-200'
-          : selected ? 'bg-stone-800 text-stone-500 border-stone-700' : 'bg-stone-50 text-stone-400 border-stone-200'
+          ? 'bg-emerald-50 text-emerald-600 border-emerald-200'
+          : 'bg-stone-50 text-stone-400 border-stone-200'
       }`}>
         {scene.visible ? '顯示' : '隱藏'}
       </span>
@@ -85,21 +86,13 @@ function SortableRow({ scene, selected, onSelect, onDelete }: {
       <div className="flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity" onClick={e => e.stopPropagation()}>
         <button
           onClick={() => router.push(`/admin/scenes/${scene.id}`)}
-          className={`text-xs px-3 py-1.5 rounded-lg border transition-colors ${
-            selected
-              ? 'text-stone-300 hover:text-white bg-stone-800 hover:bg-stone-700 border-stone-700'
-              : 'text-stone-500 hover:text-stone-900 bg-stone-50 hover:bg-stone-100 border-stone-200'
-          }`}
+          className="text-xs px-3 py-1.5 rounded-lg border transition-colors text-stone-500 hover:text-stone-900 bg-white hover:bg-stone-100 border-stone-200"
         >
           編輯
         </button>
         <button
           onClick={() => onDelete(scene.id)}
-          className={`text-xs px-2 py-1.5 rounded-lg border transition-colors ${
-            selected
-              ? 'text-stone-500 hover:text-red-400 bg-stone-800 hover:bg-red-900/30 border-stone-700'
-              : 'text-stone-300 hover:text-red-500 bg-stone-50 hover:bg-red-50 border-stone-200'
-          }`}
+          className="text-xs px-2 py-1.5 rounded-lg border transition-colors text-stone-300 hover:text-red-500 bg-white hover:bg-red-50 border-stone-200"
         >
           ✕
         </button>
