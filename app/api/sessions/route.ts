@@ -2,6 +2,11 @@ import { createClient } from '@/lib/supabase/server'
 import { NextRequest, NextResponse } from 'next/server'
 
 export async function POST(req: NextRequest) {
+  const url = process.env.NEXT_PUBLIC_SUPABASE_URL
+  if (!url || url.includes('placeholder')) {
+    return NextResponse.json({ error: 'Supabase env vars not configured in Vercel' }, { status: 500 })
+  }
+
   const supabase = await createClient()
   const userAgent = req.headers.get('user-agent') ?? ''
 
