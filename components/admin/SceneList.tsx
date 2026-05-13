@@ -231,7 +231,7 @@ export default function SceneList({ initialScenes }: { initialScenes: Scene[] })
         {selectedScene ? (
           <>
             <p className="text-[11px] text-stone-400 font-medium tracking-widest uppercase">預覽</p>
-            <ScenePhonePreview scene={selectedScene} />
+            <ScenePhonePreview scene={selectedScene} interactive />
             <p className="text-xs text-stone-500 font-medium text-center">{selectedScene.title}</p>
             <button
               onClick={() => router.push(`/admin/scenes/${selectedScene.id}`)}

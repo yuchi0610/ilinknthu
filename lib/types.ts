@@ -19,10 +19,8 @@ export interface AnimationConfig {
 }
 
 export interface NewspaperPage {
-  year: number
   image_url: string
-  headline: string
-  subtext?: string
+  fast_flip?: boolean
 }
 
 export interface NewspaperConfig {
@@ -32,13 +30,20 @@ export interface NewspaperConfig {
 export interface DialogLine {
   speaker: string
   text: string
-  avatar_url?: string
   character_image_url?: string
+  character_x?: number     // 0–100, horizontal center position, default 50
+  character_scale?: number // 50–200, percentage of area height, default 100
 }
 
 export interface DialogConfig {
   background_url?: string
   dialogs: DialogLine[]
+  box_theme?: 'dark' | 'light'
+  box_height?: number      // vh units, default 38
+  name_font_size?: number  // px, default 14
+  name_color?: string
+  text_font_size?: number  // px, default 14
+  text_color?: string
 }
 
 export interface TextConfig {
