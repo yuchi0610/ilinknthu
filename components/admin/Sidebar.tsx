@@ -22,38 +22,45 @@ export default function Sidebar() {
   }
 
   return (
-    <aside className="w-56 flex-shrink-0 bg-zinc-900 border-r border-zinc-800 flex flex-col">
-      <div className="px-5 py-6 border-b border-zinc-800">
-        <p className="text-xs text-zinc-500 tracking-widest mb-1">後台管理</p>
-        <h1 className="text-white font-bold text-sm leading-tight">核去核從<br/>互動體驗</h1>
+    <aside className="w-52 flex-shrink-0 bg-white border-r border-slate-200 flex flex-col">
+      <div className="px-5 py-5 border-b border-slate-100">
+        <p className="text-[10px] text-slate-400 tracking-widest uppercase mb-1">後台管理</p>
+        <h1 className="text-slate-800 font-bold text-sm leading-snug">核去核從</h1>
       </div>
 
-      <nav className="flex-1 py-4">
+      <nav className="flex-1 py-3 px-2">
         {NAV.map(({ href, label, icon }) => {
           const active = pathname.startsWith(href)
           return (
             <Link
               key={href}
               href={href}
-              className={`flex items-center gap-3 px-5 py-3 text-sm transition-colors ${
+              className={`flex items-center gap-2.5 px-3 py-2.5 rounded-lg text-sm transition-colors mb-0.5 ${
                 active
-                  ? 'bg-yellow-400/10 text-yellow-400 border-r-2 border-yellow-400'
-                  : 'text-zinc-400 hover:text-white hover:bg-zinc-800'
+                  ? 'bg-indigo-50 text-indigo-700 font-medium'
+                  : 'text-slate-500 hover:text-slate-800 hover:bg-slate-50'
               }`}
             >
-              <span>{icon}</span>
+              <span className="text-base">{icon}</span>
               <span>{label}</span>
             </Link>
           )
         })}
       </nav>
 
-      <div className="p-4 border-t border-zinc-800">
+      <div className="p-3 border-t border-slate-100">
+        <Link
+          href="/"
+          target="_blank"
+          className="flex items-center gap-2 px-3 py-2 text-xs text-slate-400 hover:text-slate-600 rounded-lg hover:bg-slate-50 transition-colors mb-1"
+        >
+          <span>↗</span> 預覽網站
+        </Link>
         <button
           onClick={handleLogout}
-          className="w-full text-sm text-zinc-500 hover:text-white transition-colors py-2"
+          className="w-full text-left flex items-center gap-2 px-3 py-2 text-xs text-slate-400 hover:text-slate-600 rounded-lg hover:bg-slate-50 transition-colors"
         >
-          登出
+          <span>→</span> 登出
         </button>
       </div>
     </aside>

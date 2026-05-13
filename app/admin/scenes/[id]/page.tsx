@@ -12,7 +12,7 @@ export default async function SceneEditPage({ params }: { params: Promise<{ id: 
   if (!scene) notFound()
 
   return (
-    <div className="p-8 max-w-3xl">
+    <div className="h-full flex flex-col">
       <SceneEditor scene={scene as Scene} />
     </div>
   )
