@@ -4,6 +4,7 @@ import { useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { createClient } from '@/lib/supabase/client'
 import MediaPickerModal from './MediaPickerModal'
+import ScenePhonePreview from './ScenePhonePreview'
 import type { Scene, SceneType, DialogConfig, AnimationConfig, NewspaperConfig, TextConfig, SignatureConfig, GameConfig } from '@/lib/types'
 
 const TYPE_LABEL: Record<SceneType, string> = {
@@ -16,8 +17,8 @@ const TYPE_LABEL: Record<SceneType, string> = {
   ending:    '結局',
 }
 
-// ── 手機預覽 ──────────────────────────────────────────────────────
-function PhonePreview({ scene, config }: { scene: Scene; config: Record<string, unknown> }) {
+// (PhonePreview moved to ScenePhonePreview.tsx)
+function _unused({ scene, config }: { scene: Scene; config: Record<string, unknown> }) {
   return (
     <div className="relative mx-auto" style={{ width: 232 }}>
       <div className="relative bg-stone-800 rounded-[2.2rem] p-2.5 shadow-2xl" style={{ aspectRatio: '9/19' }}>
@@ -391,7 +392,7 @@ export default function SceneEditor({ scene }: { scene: Scene }) {
         {/* 左側：手機預覽 */}
         <div className="w-68 flex-shrink-0 bg-stone-100 border-r border-stone-200 flex flex-col items-center justify-center p-6 gap-3" style={{ width: 272 }}>
           <p className="text-[11px] text-stone-400 font-medium tracking-widest uppercase">預覽</p>
-          <PhonePreview scene={{ ...scene, title, config, visible }} config={config} />
+          <ScenePhonePreview scene={{ ...scene, title, config, visible }} />
           <p className="text-[10px] text-stone-300">即時反映</p>
         </div>
 

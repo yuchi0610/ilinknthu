@@ -1,6 +1,8 @@
 import { createClient } from '@/lib/supabase/server'
 import { NextResponse } from 'next/server'
 
+export const revalidate = 30
+
 export async function GET() {
   const supabase = await createClient()
 
@@ -9,5 +11,8 @@ export async function GET() {
     supabase.from('endings').select('*').order('type'),
   ])
 
-  return NextResponse.json({ scenes: scenes ?? [], endings: endings ?? [] })
+  return NextResponse.json(
+    { scenes: scenes ?? [], endings: endings ?? [] },
+    { headers: { 'Cache-Control': 's-maxage=30, stale-while-revalidate=60' } }
+  )
 }

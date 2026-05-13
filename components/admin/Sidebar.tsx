@@ -5,10 +5,9 @@ import { usePathname, useRouter } from 'next/navigation'
 import { createClient } from '@/lib/supabase/client'
 
 const NAV = [
-  { href: '/admin/scenes',   label: '場景管理' },
-  { href: '/admin/media',    label: '媒體庫'   },
-  { href: '/admin/endings',  label: '結局設定' },
-  { href: '/admin/sessions', label: '遊玩紀錄' },
+  { href: '/admin/scenes',  label: '場景管理' },
+  { href: '/admin/media',   label: '媒體庫'   },
+  { href: '/admin/endings', label: '結局設定' },
 ]
 
 export default function Sidebar() {
@@ -48,17 +47,10 @@ export default function Sidebar() {
       </nav>
 
       <div className="p-3 border-t border-stone-100 space-y-0.5">
-        <Link
-          href="/"
-          target="_blank"
-          className="block px-3 py-2 text-xs text-stone-400 hover:text-stone-600 rounded-lg hover:bg-stone-50 transition-colors"
-        >
+        <Link href="/" target="_blank" className="block px-3 py-2 text-xs text-stone-400 hover:text-stone-600 rounded-lg hover:bg-stone-50 transition-colors">
           預覽網站 ↗
         </Link>
-        <button
-          onClick={handleLogout}
-          className="w-full text-left block px-3 py-2 text-xs text-stone-400 hover:text-stone-600 rounded-lg hover:bg-stone-50 transition-colors"
-        >
+        <button onClick={handleLogout} className="w-full text-left block px-3 py-2 text-xs text-stone-400 hover:text-stone-600 rounded-lg hover:bg-stone-50 transition-colors">
           登出
         </button>
       </div>

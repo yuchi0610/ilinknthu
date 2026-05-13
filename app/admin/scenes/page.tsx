@@ -12,7 +12,7 @@ export default async function ScenesPage() {
     .order('order', { ascending: true })
 
   return (
-    <div className="p-6 max-w-3xl">
+    <div className="h-full">
       <SceneList initialScenes={(scenes ?? []) as Scene[]} />
     </div>
   )
