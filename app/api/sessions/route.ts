@@ -1,13 +1,15 @@
-import { createClient } from '@/lib/supabase/server'
+import { createClient } from '@supabase/supabase-js'
 import { NextRequest, NextResponse } from 'next/server'
 
-export async function POST(req: NextRequest) {
-  const url = process.env.NEXT_PUBLIC_SUPABASE_URL
-  if (!url || url.includes('placeholder')) {
-    return NextResponse.json({ error: 'Supabase env vars not configured in Vercel' }, { status: 500 })
-  }
+function getSupabase() {
+  return createClient(
+    process.env.NEXT_PUBLIC_SUPABASE_URL ?? '',
+    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY ?? '',
+  )
+}
 
-  const supabase = await createClient()
+export async function POST(req: NextRequest) {
+  const supabase = getSupabase()
   const userAgent = req.headers.get('user-agent') ?? ''
 
   const { data, error } = await supabase
@@ -21,7 +23,7 @@ export async function POST(req: NextRequest) {
 }
 
 export async function PATCH(req: NextRequest) {
-  const supabase = await createClient()
+  const supabase = getSupabase()
   const body = await req.json()
   const { id, scores, total_score, ending_type, signature_url } = body
 
