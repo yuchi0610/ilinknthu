@@ -108,6 +108,7 @@ export default function SceneList({ initialScenes }: { initialScenes: Scene[] })
   const [showAdd, setShowAdd] = useState(false)
   const [newTitle, setNewTitle] = useState('')
   const [newType, setNewType] = useState<SceneType>('dialog')
+  const [addError, setAddError] = useState('')
 
   const sensors = useSensors(useSensor(PointerSensor))
   const supabase = createClient()
@@ -137,13 +138,15 @@ export default function SceneList({ initialScenes }: { initialScenes: Scene[] })
 
   async function handleAdd() {
     if (!newTitle.trim()) return
+    setAddError('')
     const order = scenes.length + 1
     const { data, error } = await supabase
       .from('scenes')
       .insert({ type: newType, title: newTitle.trim(), order, config: {}, visible: true })
       .select()
       .single()
-    if (!error && data) router.push(`/admin/scenes/${data.id}`)
+    if (error) { setAddError(`建立失敗：${error.message}`); return }
+    if (data) router.push(`/admin/scenes/${data.id}`)
   }
 
   return (
@@ -167,32 +170,35 @@ export default function SceneList({ initialScenes }: { initialScenes: Scene[] })
         </div>
 
         {showAdd && (
-          <div className="bg-white border border-stone-200 rounded-xl p-4 mb-4 flex gap-3 items-end shadow-sm">
-            <div className="flex-1">
-              <label className="text-xs text-stone-500 mb-1 block font-medium">場景名稱</label>
-              <input
-                value={newTitle}
-                onChange={e => setNewTitle(e.target.value)}
-                onKeyDown={e => e.key === 'Enter' && handleAdd()}
-                placeholder="例：開場動畫"
-                autoFocus
-                className="w-full border border-stone-200 rounded-lg px-3 py-2 text-sm text-stone-800 focus:outline-none focus:border-stone-400"
-              />
+          <div className="bg-white border border-stone-200 rounded-xl p-4 mb-4 shadow-sm">
+            <div className="flex gap-3 items-end">
+              <div className="flex-1">
+                <label className="text-xs text-stone-500 mb-1 block font-medium">場景名稱</label>
+                <input
+                  value={newTitle}
+                  onChange={e => setNewTitle(e.target.value)}
+                  onKeyDown={e => e.key === 'Enter' && handleAdd()}
+                  placeholder="例：開場動畫"
+                  autoFocus
+                  className="w-full border border-stone-200 rounded-lg px-3 py-2 text-sm text-stone-800 focus:outline-none focus:border-stone-400"
+                />
+              </div>
+              <div>
+                <label className="text-xs text-stone-500 mb-1 block font-medium">類型</label>
+                <select
+                  value={newType}
+                  onChange={e => setNewType(e.target.value as SceneType)}
+                  className="border border-stone-200 rounded-lg px-3 py-2 text-sm text-stone-800 focus:outline-none focus:border-stone-400 bg-white"
+                >
+                  {(Object.keys(TYPE_LABEL) as SceneType[]).map(t => (
+                    <option key={t} value={t}>{TYPE_LABEL[t]}</option>
+                  ))}
+                </select>
+              </div>
+              <button onClick={handleAdd} className="bg-stone-800 hover:bg-stone-900 text-white font-medium text-sm px-4 py-2 rounded-lg transition-colors">建立</button>
+              <button onClick={() => { setShowAdd(false); setAddError('') }} className="text-stone-400 hover:text-stone-600 text-sm px-3 py-2">取消</button>
             </div>
-            <div>
-              <label className="text-xs text-stone-500 mb-1 block font-medium">類型</label>
-              <select
-                value={newType}
-                onChange={e => setNewType(e.target.value as SceneType)}
-                className="border border-stone-200 rounded-lg px-3 py-2 text-sm text-stone-800 focus:outline-none focus:border-stone-400 bg-white"
-              >
-                {(Object.keys(TYPE_LABEL) as SceneType[]).map(t => (
-                  <option key={t} value={t}>{TYPE_LABEL[t]}</option>
-                ))}
-              </select>
-            </div>
-            <button onClick={handleAdd} className="bg-stone-800 hover:bg-stone-900 text-white font-medium text-sm px-4 py-2 rounded-lg transition-colors">建立</button>
-            <button onClick={() => setShowAdd(false)} className="text-stone-400 hover:text-stone-600 text-sm px-3 py-2">取消</button>
+            {addError && <p className="text-xs text-red-500 mt-2">{addError}</p>}
           </div>
         )}
 
