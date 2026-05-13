@@ -21,7 +21,28 @@ export default function ScenePhonePreview({ scene, interactive }: Props) {
   )
 }
 
+// ── CSS ────────────────────────────────────────────────────────────
+const MINI_NW_CSS = `
+  @keyframes miniFlipFwd {
+    0%   { transform: rotateY(0deg);    opacity: 1; }
+    85%  { transform: rotateY(-170deg); opacity: 1; }
+    100% { transform: rotateY(-180deg); opacity: 0; }
+  }
+  @keyframes miniFlipBack {
+    0%   { transform: rotateY(0deg);   opacity: 1; }
+    85%  { transform: rotateY(170deg); opacity: 1; }
+    100% { transform: rotateY(180deg); opacity: 0; }
+  }
+  @keyframes miniPageSweep {
+    0%, 12% { transform: rotateY(0deg); opacity: 1; }
+    60%     { transform: rotateY(-85deg); opacity: 0.4; }
+    61%, 100% { transform: rotateY(-180deg); opacity: 0; }
+  }
+`
+
 // ── 互動對話預覽 ──────────────────────────────────────────────────
+// Uses position:absolute for character/box so that box_height slider updates live.
+// flex-based percentage heights are unreliable when height:100% is chained through multiple ancestors.
 function MiniDialogPreview({ config }: { config: DialogConfig }) {
   const dialogs = config.dialogs ?? []
   const [index, setIndex] = useState(0)
@@ -60,9 +81,8 @@ function MiniDialogPreview({ config }: { config: DialogConfig }) {
   }
 
   const boxTheme = config.box_theme ?? 'dark'
-  // Use flex numeric values so proportions update live (percentage heights are unreliable in flex-col)
-  const boxFlex = config.box_height ?? 38
-  const charFlex = 100 - boxFlex
+  const boxHeightPct = config.box_height ?? 38
+  const charHeightPct = 100 - boxHeightPct
   const nameSize = Math.round((config.name_font_size ?? 14) * 0.6)
   const textSize = Math.round((config.text_font_size ?? 14) * 0.6)
   const nameColor = config.name_color ?? '#ffffff'
@@ -70,19 +90,16 @@ function MiniDialogPreview({ config }: { config: DialogConfig }) {
   const boxBg = boxTheme === 'dark' ? '#0f172a' : '#ffffff'
   const nameBadgeBg = boxTheme === 'dark' ? 'rgba(30,27,75,0.9)' : 'rgba(255,255,255,0.92)'
 
+  const bgStyle = config.background_url
+    ? { backgroundImage: `url(${config.background_url})`, backgroundSize: 'cover', backgroundPosition: 'center' }
+    : { background: 'linear-gradient(160deg,#1e1b4b 0%,#312e81 60%,#1e1b4b 100%)' }
+
   return (
-    <div
-      className="w-full h-full flex flex-col cursor-pointer select-none"
-      style={config.background_url
-        ? { backgroundImage: `url(${config.background_url})`, backgroundSize: 'cover', backgroundPosition: 'center' }
-        : { background: 'linear-gradient(160deg,#1e1b4b 0%,#312e81 60%,#1e1b4b 100%)' }
-      }
-      onClick={handleClick}
-    >
+    <div className="w-full h-full relative cursor-pointer select-none overflow-hidden" style={bgStyle} onClick={handleClick}>
       {current?.character_image_url ? (
         <>
-          {/* flex numeric keeps proportions live when box_height slider moves */}
-          <div className="relative overflow-hidden" style={{ flex: charFlex, minHeight: 0 }}>
+          {/* Character area — absolute with % height; resolves against relative parent with definite height */}
+          <div className="absolute left-0 right-0 top-0 overflow-hidden" style={{ height: `${charHeightPct}%` }}>
             <img
               src={current.character_image_url}
               alt=""
@@ -106,15 +123,20 @@ function MiniDialogPreview({ config }: { config: DialogConfig }) {
               </div>
             )}
             {current.speaker && (
-              <div className="absolute bottom-0 left-1.5 pb-1">
+              <div className="absolute bottom-0 left-1.5 pb-0.5">
                 <div className="inline-block px-2 py-0.5 rounded-t-lg" style={{ backgroundColor: nameBadgeBg }}>
                   <span style={{ fontSize: nameSize, color: nameColor }} className="font-semibold">{current.speaker}</span>
                 </div>
               </div>
             )}
           </div>
-          <div className="px-2 pt-1.5 pb-2 flex flex-col" style={{ flex: boxFlex, minHeight: 0, backgroundColor: boxBg }}>
-            <p style={{ fontSize: textSize, color: textColor, lineHeight: 1.6 }} className="flex-1 overflow-hidden">
+
+          {/* Dialog box — absolute at bottom with % height */}
+          <div
+            className="absolute left-0 right-0 bottom-0 flex flex-col px-2 pt-1.5 pb-2 overflow-hidden"
+            style={{ height: `${boxHeightPct}%`, backgroundColor: boxBg }}
+          >
+            <p style={{ fontSize: textSize, color: textColor, lineHeight: 1.55 }} className="flex-1 overflow-hidden">
               {displayed || <span style={{ opacity: 0.3 }}>尚未輸入…</span>}
               <span className={`inline-block w-0.5 h-3 bg-current ml-0.5 align-middle animate-pulse ${done ? 'opacity-0' : ''}`} />
             </p>
@@ -148,61 +170,86 @@ function MiniDialogPreview({ config }: { config: DialogConfig }) {
   )
 }
 
-// ── 互動報紙預覽 ──────────────────────────────────────────────────
-const MINI_FLIP_CSS = `
-  @keyframes miniPageSweep {
-    0%, 15%  { transform: translateX(0) rotate(0deg); opacity: 1; }
-    75%      { transform: translateX(-90%) rotate(-10deg); opacity: 0.2; }
-    76%, 100% { transform: translateX(0) rotate(0deg); opacity: 0; }
-  }
-`
-
+// ── 互動報紙預覽（書頁翻頁效果） ──────────────────────────────────
 function MiniNewspaperPreview({ config }: { config: NewspaperConfig }) {
   const pages = config.pages ?? []
   const [index, setIndex] = useState(0)
-  const page = pages[index]
+  const [flipAnim, setFlipAnim] = useState<{ fromIdx: number; dir: 'fwd' | 'back' } | null>(null)
 
   if (!pages.length) {
     return <div className="w-full h-full bg-stone-100 flex items-center justify-center"><p className="text-[8px] text-stone-400">尚未新增頁面</p></div>
   }
 
+  function goTo(next: number, dir: 'fwd' | 'back') {
+    if (flipAnim || next < 0 || next >= pages.length) return
+    setFlipAnim({ fromIdx: index, dir })
+    setIndex(next)
+    setTimeout(() => setFlipAnim(null), 420)
+  }
+
+  const page = pages[index]
+  const fromPage = flipAnim ? pages[flipAnim.fromIdx] : null
+
   return (
-    <div className="w-full h-full bg-stone-100 text-stone-900 flex flex-col">
+    <div className="w-full h-full bg-stone-100 flex flex-col">
+      <style>{MINI_NW_CSS}</style>
+
       {page?.fast_flip ? (
-        <div className="flex-1 flex items-center justify-center bg-amber-50 overflow-hidden relative">
-          <style>{MINI_FLIP_CSS}</style>
+        <div className="flex-1 relative overflow-hidden bg-amber-50" style={{ perspective: '500px' }}>
           {[...Array(4)].map((_, i) => (
-            <div
-              key={i}
-              className="absolute bg-white border border-stone-200 shadow-sm rounded"
+            <div key={i} className="absolute bg-white border border-stone-200 shadow-sm rounded"
               style={{
                 width: 56, height: 72,
-                left: '50%', top: '50%',
-                marginLeft: -28, marginTop: -36,
-                animation: 'miniPageSweep 1.4s ease-in infinite',
-                animationDelay: `${i * 0.35}s`,
+                left: '50%', top: '50%', marginLeft: -28, marginTop: -36,
+                transformOrigin: 'left center',
+                animation: 'miniPageSweep 1.3s ease-in-out infinite',
+                animationDelay: `${i * 0.32}s`,
               }}
             >
               <div className="p-1.5 space-y-1">
-                {[0,1,2].map(j => (
-                  <div key={j} className="h-1 bg-stone-100 rounded" style={{ width: `${50 + j * 15}%` }} />
-                ))}
+                {[0,1,2].map(j => <div key={j} className="h-1 bg-stone-100 rounded" style={{ width: `${50+j*15}%` }} />)}
               </div>
             </div>
           ))}
         </div>
-      ) : page?.image_url ? (
-        <img src={page.image_url} className="w-full flex-1 object-cover" alt="" style={{ minHeight: 0 }} />
       ) : (
-        <div className="flex-1 flex items-center justify-center"><p className="text-[8px] text-stone-400">未設定圖片</p></div>
+        <div className="flex-1 relative overflow-hidden" style={{ perspective: '600px' }}>
+          {/* Background: current (destination) page */}
+          <div className="absolute inset-0">
+            {page?.image_url
+              ? <img src={page.image_url} className="w-full h-full object-cover" alt="" />
+              : <div className="w-full h-full flex items-center justify-center"><p className="text-[8px] text-stone-400">未設定圖片</p></div>
+            }
+          </div>
+          {/* Foreground: flipping-away page */}
+          {flipAnim && fromPage && (
+            <div
+              className="absolute inset-0"
+              style={{
+                transformStyle: 'preserve-3d',
+                transformOrigin: flipAnim.dir === 'fwd' ? 'left center' : 'right center',
+                animation: `${flipAnim.dir === 'fwd' ? 'miniFlipFwd' : 'miniFlipBack'} 0.42s ease-in-out forwards`,
+              }}
+            >
+              <div className="absolute inset-0" style={{ backfaceVisibility: 'hidden' }}>
+                {fromPage.image_url
+                  ? <img src={fromPage.image_url} className="w-full h-full object-cover" alt="" />
+                  : <div className="w-full h-full bg-stone-200" />
+                }
+              </div>
+              <div className="absolute inset-0" style={{ transform: 'rotateY(180deg)', backfaceVisibility: 'hidden', backgroundColor: '#f4f2ed' }} />
+            </div>
+          )}
+        </div>
       )}
+
       {pages.length > 1 && (
         <div className="flex items-center justify-between px-2 py-1.5 border-t border-stone-200 bg-white flex-shrink-0">
-          <button onClick={e => { e.stopPropagation(); index > 0 && setIndex(i => i - 1) }}
-            className="text-[8px] text-stone-400 disabled:opacity-30" disabled={index === 0}>←</button>
+          <button onClick={e => { e.stopPropagation(); goTo(index - 1, 'back') }}
+            className="text-[8px] text-stone-400 disabled:opacity-30" disabled={index === 0 || !!flipAnim}>←</button>
           <span className="text-[7px] text-stone-400">{index + 1}/{pages.length}</span>
-          <button onClick={e => { e.stopPropagation(); index < pages.length - 1 && setIndex(i => i + 1) }}
-            className="text-[8px] text-stone-400 disabled:opacity-30" disabled={index === pages.length - 1}>→</button>
+          <button onClick={e => { e.stopPropagation(); goTo(index + 1, 'fwd') }}
+            className="text-[8px] text-stone-400 disabled:opacity-30" disabled={index === pages.length - 1 || !!flipAnim}>→</button>
         </div>
       )}
     </div>
@@ -255,15 +302,12 @@ function PreviewContent({ scene, interactive }: { scene: Scene; interactive?: bo
       const page = c.pages?.[0]
       return (
         <div className="w-full h-full bg-stone-100 flex flex-col">
-          {page?.fast_flip ? (
-            <div className="flex-1 flex items-center justify-center bg-amber-50">
-              <p className="text-[8px] text-stone-400">翻頁動畫頁</p>
-            </div>
-          ) : page?.image_url ? (
-            <img src={page.image_url} className="w-full flex-1 object-cover" alt="" />
-          ) : (
-            <div className="flex-1 flex items-center justify-center"><p className="text-[8px] text-stone-400">未設定圖片</p></div>
-          )}
+          {page?.fast_flip
+            ? <div className="flex-1 flex items-center justify-center bg-amber-50"><p className="text-[8px] text-stone-400">翻頁動畫頁</p></div>
+            : page?.image_url
+              ? <img src={page.image_url} className="w-full flex-1 object-cover" alt="" />
+              : <div className="flex-1 flex items-center justify-center"><p className="text-[8px] text-stone-400">未設定圖片</p></div>
+          }
         </div>
       )
     }
@@ -322,10 +366,6 @@ function PreviewContent({ scene, interactive }: { scene: Scene; interactive?: bo
     }
 
     default:
-      return (
-        <div className="w-full h-full bg-black flex items-center justify-center">
-          <p className="text-white/25 text-[9px]">結局場景</p>
-        </div>
-      )
+      return <div className="w-full h-full bg-black flex items-center justify-center"><p className="text-white/25 text-[9px]">結局場景</p></div>
   }
 }

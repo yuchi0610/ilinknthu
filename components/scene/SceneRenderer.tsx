@@ -302,45 +302,59 @@ function AnimationScene({ scene, onFinish }: { scene: Scene; onFinish: () => voi
   )
 }
 
-// ── 快速翻頁動畫 ─────────────────────────────────────────────────
-function FastFlipAnimation({ onDone }: { onDone: () => void }) {
+// ── 報紙：書頁翻頁 CSS ────────────────────────────────────────────
+const NW_CSS = `
+  @keyframes nwFlipFwd {
+    0%   { transform: rotateY(0deg);    opacity: 1; }
+    86%  { transform: rotateY(-170deg); opacity: 1; }
+    100% { transform: rotateY(-180deg); opacity: 0; }
+  }
+  @keyframes nwFlipBack {
+    0%   { transform: rotateY(0deg);   opacity: 1; }
+    86%  { transform: rotateY(170deg); opacity: 1; }
+    100% { transform: rotateY(180deg); opacity: 0; }
+  }
+  @keyframes fastPageFlip {
+    0%, 8%   { transform: rotateY(0deg);    opacity: 1; }
+    48%      { transform: rotateY(-90deg);   opacity: 0.8; }
+    90%, 100%{ transform: rotateY(-180deg);  opacity: 0; }
+  }
+`
+
+// ── 快速翻頁動畫（自動播放多頁翻頁效果） ─────────────────────────
+function FastFlipSequence({ onDone }: { onDone: () => void }) {
   const onDoneRef = useRef(onDone)
   useEffect(() => { onDoneRef.current = onDone }, [onDone])
-
   useEffect(() => {
-    const t = setTimeout(() => onDoneRef.current(), 2600)
+    const t = setTimeout(() => onDoneRef.current(), 3000)
     return () => clearTimeout(t)
   }, [])
 
   return (
-    <div className="min-h-screen bg-amber-50 flex items-center justify-center overflow-hidden">
-      <style>{`
-        @keyframes pageSweep {
-          0%   { transform: translateX(0) rotate(0deg); opacity: 1; }
-          65%  { transform: translateX(-115%) rotate(-12deg); opacity: 0.2; }
-          100% { transform: translateX(-145%) rotate(-16deg); opacity: 0; }
-        }
-      `}</style>
-      <div className="relative" style={{ width: 240, height: 320 }}>
+    <div className="min-h-screen bg-stone-100 flex items-center justify-center overflow-hidden">
+      <style>{NW_CSS}</style>
+      <div className="relative" style={{ width: 300, height: 400, perspective: '2000px' }}>
         {[...Array(9)].map((_, i) => (
           <div
             key={i}
-            className="absolute bg-white border border-stone-200 shadow rounded"
+            className="absolute bg-white border border-stone-200 shadow-lg"
             style={{
-              width: 200,
-              height: 280,
-              left: 20,
-              top: 20,
-              animation: 'pageSweep 0.5s ease-in forwards',
-              animationDelay: `${i * 0.22}s`,
-              zIndex: 9 - i,
+              inset: 0,
+              transformOrigin: 'left center',
+              transformStyle: 'preserve-3d',
+              animation: 'fastPageFlip 0.6s ease-in-out forwards',
+              animationDelay: `${i * 0.27}s`,
             }}
           >
-            <div className="p-4 pt-6 space-y-2">
-              {[...Array(5)].map((_, j) => (
-                <div key={j} className="h-1.5 bg-stone-100 rounded" style={{ width: `${50 + j * 8}%` }} />
+            {/* Front face */}
+            <div className="absolute inset-0 p-8 pt-10" style={{ backfaceVisibility: 'hidden' }}>
+              <div className="h-3 bg-stone-100 rounded mb-4 w-2/3" />
+              {[...Array(6)].map((_, j) => (
+                <div key={j} className="h-2 bg-stone-50 rounded mb-2" style={{ width: `${55 + j * 6}%` }} />
               ))}
             </div>
+            {/* Back face — slightly off-white */}
+            <div className="absolute inset-0" style={{ transform: 'rotateY(180deg)', backfaceVisibility: 'hidden', backgroundColor: '#f4f2ed' }} />
           </div>
         ))}
       </div>
@@ -349,20 +363,28 @@ function FastFlipAnimation({ onDone }: { onDone: () => void }) {
 }
 
 // ── 報紙場景 ─────────────────────────────────────────────────────
+function NewspaperPageView({ page }: { page: NewspaperConfig['pages'][number] | undefined }) {
+  if (!page?.image_url) {
+    return <div className="w-full h-full bg-stone-200 flex items-center justify-center"><p className="text-stone-400 text-sm">未設定圖片</p></div>
+  }
+  return <img src={page.image_url} alt="" className="w-full h-full object-cover" />
+}
+
 function NewspaperScene({ scene, onFinish }: { scene: Scene; onFinish: () => void }) {
   const config = scene.config as NewspaperConfig
   const pages = config.pages ?? []
   const [index, setIndex] = useState(0)
-  const startX = useRef<number | null>(null)
+  const [flipAnim, setFlipAnim] = useState<{ fromIdx: number; dir: 'fwd' | 'back' } | null>(null)
 
-  function advance() {
-    if (index < pages.length - 1) setIndex(i => i + 1)
-    else onFinish()
-  }
+  const page = pages[index]
 
-  function handleSwipe(dx: number) {
-    if (dx < -50) advance()
-    if (dx > 50 && index > 0) setIndex(i => i - 1)
+  function goTo(next: number, dir: 'fwd' | 'back') {
+    if (flipAnim) return
+    if (next >= pages.length) { onFinish(); return }
+    if (next < 0) return
+    setFlipAnim({ fromIdx: index, dir })
+    setIndex(next)
+    setTimeout(() => setFlipAnim(null), 520)
   }
 
   if (!pages.length) {
@@ -374,44 +396,84 @@ function NewspaperScene({ scene, onFinish }: { scene: Scene; onFinish: () => voi
     )
   }
 
-  const page = pages[index]
-
   if (page?.fast_flip) {
-    return <FastFlipAnimation onDone={advance} />
+    return (
+      <>
+        <style>{NW_CSS}</style>
+        <FastFlipSequence onDone={() => {
+          const next = index + 1
+          if (next >= pages.length) onFinish()
+          else setIndex(next)
+        }} />
+      </>
+    )
   }
 
-  return (
-    <div
-      className="min-h-screen bg-zinc-100 text-zinc-900 flex flex-col select-none"
-      onTouchStart={e => { startX.current = e.touches[0].clientX }}
-      onTouchEnd={e => { if (startX.current !== null) { handleSwipe(e.changedTouches[0].clientX - startX.current); startX.current = null } }}
-      onMouseDown={e => { startX.current = e.clientX }}
-      onMouseUp={e => { if (startX.current !== null) { handleSwipe(e.clientX - startX.current); startX.current = null } }}
-    >
-      {page.image_url ? (
-        <img src={page.image_url} alt="" className="w-full flex-1 object-cover" style={{ minHeight: 0 }} />
-      ) : (
-        <div className="flex-1 flex items-center justify-center bg-stone-200">
-          <p className="text-sm text-stone-400">未設定圖片</p>
-        </div>
-      )}
+  const fromPage = flipAnim ? pages[flipAnim.fromIdx] : null
 
-      {/* 分頁控制 */}
-      <div className="flex items-center justify-between px-6 py-4 bg-zinc-100 border-t border-zinc-200">
+  return (
+    <div className="min-h-screen flex flex-col bg-zinc-100">
+      <style>{NW_CSS}</style>
+
+      {/* Page area with 3D flip */}
+      <div className="flex-1 relative overflow-hidden" style={{ perspective: '2000px' }}>
+        {/* Background: destination page */}
+        <div className="absolute inset-0">
+          <NewspaperPageView page={page} />
+        </div>
+
+        {/* Foreground: the page flying away */}
+        {flipAnim && fromPage && (
+          <div
+            className="absolute inset-0"
+            style={{
+              transformStyle: 'preserve-3d',
+              transformOrigin: flipAnim.dir === 'fwd' ? 'left center' : 'right center',
+              animation: `${flipAnim.dir === 'fwd' ? 'nwFlipFwd' : 'nwFlipBack'} 0.5s ease-in-out forwards`,
+            }}
+          >
+            {/* Front: the page we're leaving */}
+            <div className="absolute inset-0" style={{ backfaceVisibility: 'hidden' }}>
+              <NewspaperPageView page={fromPage} />
+              {/* Shadow on the leading edge — deepens as page curls */}
+              <div
+                className="absolute inset-y-0 w-1/4 pointer-events-none"
+                style={{
+                  [flipAnim.dir === 'fwd' ? 'right' : 'left']: 0,
+                  background: flipAnim.dir === 'fwd'
+                    ? 'linear-gradient(to left, rgba(0,0,0,0.22) 0%, transparent 100%)'
+                    : 'linear-gradient(to right, rgba(0,0,0,0.22) 0%, transparent 100%)',
+                }}
+              />
+            </div>
+            {/* Back: off-white back side of the page */}
+            <div
+              className="absolute inset-0"
+              style={{ transform: 'rotateY(180deg)', backfaceVisibility: 'hidden', backgroundColor: '#f4f2ed' }}
+            />
+          </div>
+        )}
+      </div>
+
+      {/* Navigation bar */}
+      <div className="flex items-center justify-between px-6 py-4 bg-zinc-100 border-t border-zinc-200 flex-shrink-0">
         <button
-          onClick={() => index > 0 && setIndex(i => i - 1)}
+          onClick={() => goTo(index - 1, 'back')}
+          disabled={index === 0 || !!flipAnim}
           className="text-sm text-zinc-500 disabled:opacity-30"
-          disabled={index === 0}
         >← 上一頁</button>
         <div className="flex gap-1.5">
           {pages.map((_, i) => (
             <span key={i} className={`w-1.5 h-1.5 rounded-full transition-colors ${i === index ? 'bg-zinc-700' : 'bg-zinc-300'}`} />
           ))}
         </div>
-        {index < pages.length - 1
-          ? <button onClick={advance} className="text-sm text-zinc-700">下一頁 →</button>
-          : <button onClick={onFinish} className="text-sm text-yellow-600 font-medium">完成 →</button>
-        }
+        <button
+          onClick={() => goTo(index + 1, 'fwd')}
+          disabled={!!flipAnim}
+          className={`text-sm ${index < pages.length - 1 ? 'text-zinc-700' : 'text-yellow-600 font-medium'}`}
+        >
+          {index < pages.length - 1 ? '下一頁 →' : '完成 →'}
+        </button>
       </div>
     </div>
   )
