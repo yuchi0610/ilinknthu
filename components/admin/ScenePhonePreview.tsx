@@ -40,9 +40,12 @@ const MINI_NW_CSS = `
   }
 `
 
+// Phone frame constants (style={{ width: 224 }}, p-2.5=10px padding, aspectRatio:'9/19')
+// Screen height = Math.round(224 * 19/9) - 20 = 453px
+// Using explicit px instead of CSS % avoids the unreliable h-full→h-full→aspect-ratio chain.
+const PHONE_SCREEN_H = 453
+
 // ── 互動對話預覽 ──────────────────────────────────────────────────
-// Uses position:absolute for character/box so that box_height slider updates live.
-// flex-based percentage heights are unreliable when height:100% is chained through multiple ancestors.
 function MiniDialogPreview({ config }: { config: DialogConfig }) {
   const dialogs = config.dialogs ?? []
   const [index, setIndex] = useState(0)
@@ -81,8 +84,9 @@ function MiniDialogPreview({ config }: { config: DialogConfig }) {
   }
 
   const boxTheme = config.box_theme ?? 'dark'
-  const boxHeightPct = config.box_height ?? 38
-  const charHeightPct = 100 - boxHeightPct
+  // Explicit pixel heights derived from the phone frame constants — bypasses CSS cascade entirely
+  const boxPx = Math.round(PHONE_SCREEN_H * (config.box_height ?? 38) / 100)
+  const charPx = PHONE_SCREEN_H - boxPx
   const nameSize = Math.round((config.name_font_size ?? 14) * 0.6)
   const textSize = Math.round((config.text_font_size ?? 14) * 0.6)
   const nameColor = config.name_color ?? '#ffffff'
@@ -98,8 +102,7 @@ function MiniDialogPreview({ config }: { config: DialogConfig }) {
     <div className="w-full h-full relative cursor-pointer select-none overflow-hidden" style={bgStyle} onClick={handleClick}>
       {current?.character_image_url ? (
         <>
-          {/* Character area — absolute with % height; resolves against relative parent with definite height */}
-          <div className="absolute left-0 right-0 top-0 overflow-hidden" style={{ height: `${charHeightPct}%` }}>
+          <div className="absolute left-0 right-0 top-0 overflow-hidden" style={{ height: charPx }}>
             <img
               src={current.character_image_url}
               alt=""
@@ -131,10 +134,9 @@ function MiniDialogPreview({ config }: { config: DialogConfig }) {
             )}
           </div>
 
-          {/* Dialog box — absolute at bottom with % height */}
           <div
             className="absolute left-0 right-0 bottom-0 flex flex-col px-2 pt-1.5 pb-2 overflow-hidden"
-            style={{ height: `${boxHeightPct}%`, backgroundColor: boxBg }}
+            style={{ height: boxPx, backgroundColor: boxBg }}
           >
             <p style={{ fontSize: textSize, color: textColor, lineHeight: 1.55 }} className="flex-1 overflow-hidden">
               {displayed || <span style={{ opacity: 0.3 }}>尚未輸入…</span>}
@@ -148,22 +150,22 @@ function MiniDialogPreview({ config }: { config: DialogConfig }) {
           </div>
         </>
       ) : (
-        <div className="flex flex-col h-full justify-end">
+        /* No character image — box is pinned to bottom with explicit px height */
+        <div className="absolute left-0 right-0 bottom-0 flex flex-col px-2 pt-2 pb-3 overflow-hidden"
+          style={{ height: boxPx, backgroundColor: boxBg }}>
           {dialogs.length > 1 && (
-            <div className="flex justify-center gap-1 mb-2">
+            <div className="flex justify-center gap-1 mb-1.5">
               {dialogs.map((_, i) => (
                 <span key={i} className={`w-1 h-1 rounded-full ${i <= index ? 'bg-white' : 'bg-white/25'}`} />
               ))}
             </div>
           )}
-          <div className="px-2 pt-2 pb-3 border-t border-white/10" style={{ backgroundColor: boxBg }}>
-            {current?.speaker && (
-              <p style={{ fontSize: nameSize, color: nameColor, marginBottom: 3 }} className="font-medium">{current.speaker}</p>
-            )}
-            <p style={{ fontSize: textSize, color: textColor, lineHeight: 1.6 }}>
-              {displayed || <span style={{ opacity: 0.3 }}>尚未輸入…</span>}
-            </p>
-          </div>
+          {current?.speaker && (
+            <p style={{ fontSize: nameSize, color: nameColor, marginBottom: 3 }} className="font-medium">{current.speaker}</p>
+          )}
+          <p style={{ fontSize: textSize, color: textColor, lineHeight: 1.6 }}>
+            {displayed || <span style={{ opacity: 0.3 }}>尚未輸入…</span>}
+          </p>
         </div>
       )}
     </div>
