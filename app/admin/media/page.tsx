@@ -24,13 +24,19 @@ export default function MediaPage() {
   const supabase = createClient()
   const [files, setFiles] = useState<MediaFile[]>([])
   const [loading, setLoading] = useState(true)
+  const [listError, setListError] = useState('')
   const [uploading, setUploading] = useState(false)
   const [uploadError, setUploadError] = useState('')
   const [copied, setCopied] = useState('')
   const inputRef = useRef<HTMLInputElement>(null)
 
   async function loadFiles() {
-    const { data } = await supabase.storage.from('media').list('', { sortBy: { column: 'created_at', order: 'desc' } })
+    const { data, error } = await supabase.storage.from('media').list('', { sortBy: { column: 'created_at', order: 'desc' } })
+    if (error) {
+      setListError(`無法讀取媒體庫：${error.message}`)
+      setLoading(false)
+      return
+    }
     if (!data) { setLoading(false); return }
     const withUrls: MediaFile[] = data
       .filter(f => f.name !== '.emptyFolderPlaceholder')
@@ -58,7 +64,17 @@ export default function MediaPage() {
       e.target.value = ''
       return
     }
-    await loadFiles()
+    // 上傳成功 — 直接把新檔案加進 state，不靠 list 重新查（避免 RLS list 政策問題）
+    const { data: urlData } = supabase.storage.from('media').getPublicUrl(filename)
+    const newFile: MediaFile = {
+      name: filename,
+      url: urlData.publicUrl,
+      size: file.size,
+      created_at: new Date().toISOString(),
+      type: fileType(filename),
+    }
+    setFiles(prev => [newFile, ...prev])
+    setLoading(false)
     setUploading(false)
     e.target.value = ''
   }
@@ -91,10 +107,17 @@ export default function MediaPage() {
         </div>
       </div>
 
+      {listError && (
+        <div className="mb-4 bg-amber-50 border border-amber-200 text-amber-700 text-sm px-4 py-3 rounded-xl space-y-1">
+          <p className="font-medium">{listError}</p>
+          <p className="text-xs text-amber-600">請至 Supabase → Storage → media bucket → Policies，新增允許已登入用戶 SELECT（列表）的政策。上傳的檔案仍可正常使用。</p>
+        </div>
+      )}
+
       {uploadError && (
-        <div className="mb-4 bg-red-50 border border-red-200 text-red-600 text-sm px-4 py-3 rounded-xl">
+        <div className="mb-4 bg-red-50 border border-red-200 text-red-600 text-sm px-4 py-3 rounded-xl space-y-1">
           <p>{uploadError}</p>
-          <p className="text-xs text-red-400 mt-1">請確認 Supabase Storage 的 bucket「media」已建立，且 RLS 政策允許已登入用戶上傳。</p>
+          <p className="text-xs text-red-400">請確認 Supabase Storage 的 bucket「media」已建立，且 RLS 政策允許已登入用戶上傳（INSERT）。</p>
         </div>
       )}
 
