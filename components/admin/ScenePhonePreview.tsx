@@ -457,7 +457,21 @@ function PreviewContent({ scene, interactive }: { scene: Scene; interactive?: bo
 
     case 'game': {
       const c = config as unknown as GameConfig
-      if (interactive && c.game_id === 'oyster') return <OysterGame onFinish={() => {}} style={{ height: PHONE_SCREEN_H }} />
+      if (interactive && c.game_id === 'oyster') {
+        // Scale the full-screen game (designed for 390px wide) down to the phone preview width (204px).
+        // CSS transform scale keeps all interactions working — getBoundingClientRect returns visual px.
+        const SCREEN_W = 204 // 224px frame - 2×10px padding
+        const DESIGN_W = 390
+        const scale = SCREEN_W / DESIGN_W
+        const designH = Math.round(PHONE_SCREEN_H / scale)
+        return (
+          <div style={{ width: SCREEN_W, height: PHONE_SCREEN_H, overflow: 'hidden', flexShrink: 0 }}>
+            <div style={{ transform: `scale(${scale})`, transformOrigin: 'top left', width: DESIGN_W, height: designH }}>
+              <OysterGame onFinish={() => {}} style={{ height: designH }} />
+            </div>
+          </div>
+        )
+      }
       return (
         <div className="w-full h-full bg-black flex flex-col items-center justify-center gap-2 p-3">
           <p className="text-white text-[10px] font-bold text-center">{c.title || scene.title}</p>
