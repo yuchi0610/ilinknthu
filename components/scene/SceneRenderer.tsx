@@ -3,6 +3,7 @@
 import { useState, useRef, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 import type { Scene, Ending, DialogConfig, AnimationConfig, NewspaperConfig, TextConfig, SignatureConfig, GameConfig } from '@/lib/types'
+import OysterGame from '@/components/games/OysterGame'
 
 interface Props {
   scene: Scene
@@ -519,6 +520,11 @@ function SignatureScene({ scene, onFinish }: { scene: Scene; onFinish: () => voi
 // ── 遊戲場景 ────────────────────────────────────────────────────
 function GameScene({ scene, onFinish }: { scene: Scene; onFinish: (score: number) => void }) {
   const config = scene.config as GameConfig
+
+  if (config.game_id === 'oyster') {
+    return <OysterGame onFinish={onFinish} />
+  }
+
   return (
     <div className="min-h-screen bg-black text-white flex flex-col items-center justify-center p-6 gap-6">
       <h2 className="text-lg font-bold">{config.title || scene.title}</h2>
