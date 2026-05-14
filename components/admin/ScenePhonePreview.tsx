@@ -1,7 +1,10 @@
 'use client'
 
 import { useState, useEffect, useRef } from 'react'
+import dynamic from 'next/dynamic'
 import type { Scene, DialogConfig, AnimationConfig, NewspaperConfig, TextConfig, SignatureConfig, GameConfig } from '@/lib/types'
+
+const OysterGame = dynamic(() => import('@/components/games/OysterGame'), { ssr: false })
 
 interface Props {
   scene: Scene
@@ -263,6 +266,91 @@ function MiniNewspaperPreview({ config }: { config: NewspaperConfig }) {
   )
 }
 
+// ── 互動簽名預覽 ──────────────────────────────────────────────────
+function MiniSignaturePreview({ config }: { config: SignatureConfig }) {
+  const canvasRef = useRef<HTMLCanvasElement>(null)
+  const drawing = useRef(false)
+  const [signed, setSigned] = useState(false)
+  const [done, setDone] = useState(false)
+
+  useEffect(() => {
+    const canvas = canvasRef.current
+    if (!canvas) return
+    canvas.width = canvas.offsetWidth
+    canvas.height = canvas.offsetHeight
+  }, [])
+
+  const bgStyle: React.CSSProperties = config.background_url
+    ? { backgroundImage: `url(${config.background_url})`, backgroundSize: 'cover', backgroundPosition: 'center' }
+    : { backgroundColor: '#f5f0e8' }
+
+  function getPos(e: React.MouseEvent | React.TouchEvent) {
+    const canvas = canvasRef.current!
+    const rect = canvas.getBoundingClientRect()
+    const src = 'touches' in e ? e.touches[0] : e
+    return { x: src.clientX - rect.left, y: src.clientY - rect.top }
+  }
+
+  function startDraw(e: React.MouseEvent | React.TouchEvent) {
+    e.preventDefault(); e.stopPropagation()
+    drawing.current = true
+    const ctx = canvasRef.current?.getContext('2d')
+    if (!ctx) return
+    const { x, y } = getPos(e)
+    ctx.beginPath(); ctx.moveTo(x, y)
+  }
+
+  function draw(e: React.MouseEvent | React.TouchEvent) {
+    e.preventDefault(); e.stopPropagation()
+    if (!drawing.current) return
+    const ctx = canvasRef.current?.getContext('2d')
+    if (!ctx) return
+    const { x, y } = getPos(e)
+    ctx.lineTo(x, y)
+    ctx.strokeStyle = '#1a1a1a'; ctx.lineWidth = 1.5; ctx.lineCap = 'round'; ctx.lineJoin = 'round'
+    ctx.stroke()
+    setSigned(true)
+  }
+
+  function endDraw() { drawing.current = false }
+
+  function clearCanvas() {
+    const canvas = canvasRef.current
+    if (!canvas) return
+    canvas.getContext('2d')?.clearRect(0, 0, canvas.width, canvas.height)
+    setSigned(false); setDone(false)
+  }
+
+  if (done) {
+    return (
+      <div className="w-full h-full flex items-center justify-center" style={bgStyle}>
+        <p className="text-[9px] text-stone-500">簽名完成 ✓</p>
+      </div>
+    )
+  }
+
+  return (
+    <div className="w-full h-full relative select-none" style={bgStyle}>
+      <canvas
+        ref={canvasRef}
+        className="absolute inset-0 w-full h-full touch-none"
+        style={{ cursor: 'crosshair' }}
+        onMouseDown={startDraw} onMouseMove={draw} onMouseUp={endDraw} onMouseLeave={endDraw}
+        onTouchStart={startDraw} onTouchMove={draw} onTouchEnd={endDraw}
+      />
+      <p className="absolute top-2 left-0 right-0 text-center text-[7px] text-black/30 pointer-events-none">
+        {config.instruction || '在畫面上簽署'}
+      </p>
+      <div className="absolute bottom-2 left-0 right-0 flex justify-center gap-1.5">
+        <button onClick={clearCanvas} className="text-[7px] text-stone-500 px-2 py-1 rounded border border-stone-300 bg-white/70">重寫</button>
+        {signed && (
+          <button onClick={() => setDone(true)} className="text-[7px] text-white px-2 py-1 rounded bg-stone-800">確認</button>
+        )}
+      </div>
+    </div>
+  )
+}
+
 // ── 靜態 / 互動內容分派 ──────────────────────────────────────────
 function PreviewContent({ scene, interactive }: { scene: Scene; interactive?: boolean }) {
   const config = scene.config as Record<string, unknown>
@@ -350,6 +438,7 @@ function PreviewContent({ scene, interactive }: { scene: Scene; interactive?: bo
 
     case 'signature': {
       const c = config as unknown as SignatureConfig
+      if (interactive) return <MiniSignaturePreview config={c} />
       return (
         <div className="w-full h-full relative flex flex-col items-center justify-center gap-2"
           style={c.background_url
@@ -368,11 +457,12 @@ function PreviewContent({ scene, interactive }: { scene: Scene; interactive?: bo
 
     case 'game': {
       const c = config as unknown as GameConfig
+      if (interactive && c.game_id === 'oyster') return <OysterGame onFinish={() => {}} />
       return (
         <div className="w-full h-full bg-black flex flex-col items-center justify-center gap-2 p-3">
           <p className="text-white text-[10px] font-bold text-center">{c.title || scene.title}</p>
           {c.description && <p className="text-white/40 text-[8px] text-center line-clamp-3">{c.description}</p>}
-          <p className="text-white/20 text-[7px]">遊戲開發中</p>
+          <p className="text-white/20 text-[7px]">{c.game_id ? `遊戲 [${c.game_id}]` : '遊戲開發中'}</p>
         </div>
       )
     }

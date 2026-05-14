@@ -290,7 +290,7 @@ export default function OysterGame({ onFinish }: { onFinish: (score: number) => 
   const isLowTime = gameState.timeLeft <= CFG.FRENZY_THRESHOLD_SECONDS
 
   return (
-    <div className="relative w-full h-screen bg-gray-900 overflow-hidden select-none touch-none flex justify-center">
+    <div className="relative w-full h-full bg-gray-900 overflow-hidden select-none touch-none flex justify-center">
       <div
         ref={containerRef}
         className="relative w-full max-w-3xl h-full bg-cover bg-center bg-no-repeat overflow-hidden cursor-crosshair"
