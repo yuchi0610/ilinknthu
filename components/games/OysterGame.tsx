@@ -198,7 +198,11 @@ export default function OysterGame({ onFinish, style }: { onFinish: (score: numb
       lastTime = time
 
       if (containerRef.current) {
-        const { height, width } = containerRef.current.getBoundingClientRect()
+        // Use CSS layout dimensions (offsetWidth/Height) so physics coordinates match
+        // CSS positioning (bottom-12, etc.) — getBoundingClientRect returns scaled visual
+        // pixels when a CSS transform is applied, causing basket/oyster position mismatch.
+        const width = containerRef.current.offsetWidth
+        const height = containerRef.current.offsetHeight
         const isFrenzy = timeLeftRef.current <= CFG.FRENZY_THRESHOLD_SECONDS
         const spawnRate = isFrenzy ? CFG.FRENZY_SPAWN_RATE_MS : CFG.SPAWN_RATE_MS
 
