@@ -33,11 +33,6 @@ const MINI_NW_CSS = `
     85%  { transform: rotateY(170deg); opacity: 1; }
     100% { transform: rotateY(180deg); opacity: 0; }
   }
-  @keyframes miniPageSweep {
-    0%, 10% { transform: rotateY(0deg);    opacity: 1; }
-    55%     { transform: rotateY(-85deg);   opacity: 0.5; }
-    56%, 100% { transform: rotateY(-180deg); opacity: 0; }
-  }
 `
 
 // Phone frame constants (style={{ width: 224 }}, p-2.5=10px padding, aspectRatio:'9/19')
@@ -177,46 +172,16 @@ function MiniNewspaperPreview({ config }: { config: NewspaperConfig }) {
   const pages = config.pages ?? []
   const [index, setIndex] = useState(0)
   const [flipAnim, setFlipAnim] = useState<{ fromIdx: number; dir: 'fwd' | 'back' } | null>(null)
-  const [fastFlipping, setFastFlipping] = useState(false)
-  const afterFastFlip = useRef(0)
   const dragStartX = useRef<number | null>(null)
-
-  // Auto-trigger fast flip if current page is a fast_flip marker
-  useEffect(() => {
-    if (!fastFlipping && pages[index]?.fast_flip) {
-      let target = index + 1
-      while (target < pages.length && pages[target]?.fast_flip) target++
-      afterFastFlip.current = Math.min(target, pages.length - 1)
-      setFastFlipping(true)
-    }
-  }, [index]) // eslint-disable-line react-hooks/exhaustive-deps
-
-  // Auto-finish fast flip sequence after 2s in preview
-  useEffect(() => {
-    if (!fastFlipping) return
-    const t = setTimeout(() => {
-      setFastFlipping(false)
-      const target = afterFastFlip.current
-      setIndex(target < pages.length ? target : Math.max(0, pages.length - 1))
-    }, 2000)
-    return () => clearTimeout(t)
-  }, [fastFlipping, pages.length])
 
   if (!pages.length) {
     return <div className="w-full h-full bg-stone-100 flex items-center justify-center"><p className="text-[8px] text-stone-400">尚未新增頁面</p></div>
   }
 
   function advance(dir: 'fwd' | 'back') {
-    if (flipAnim || fastFlipping) return
+    if (flipAnim) return
     const next = index + (dir === 'fwd' ? 1 : -1)
     if (next < 0 || next >= pages.length) return
-    if (pages[next]?.fast_flip) {
-      let target = next + 1
-      while (target < pages.length && pages[target]?.fast_flip) target++
-      afterFastFlip.current = Math.min(target, pages.length - 1)
-      setFastFlipping(true)
-      return
-    }
     setFlipAnim({ fromIdx: index, dir })
     setIndex(next)
     setTimeout(() => setFlipAnim(null), 420)
@@ -233,8 +198,6 @@ function MiniNewspaperPreview({ config }: { config: NewspaperConfig }) {
 
   const page = pages[index]
   const fromPage = flipAnim ? pages[flipAnim.fromIdx] : null
-  const contentPages = pages.filter(p => !p.fast_flip)
-  const contentIndex = contentPages.indexOf(page)
 
   return (
     <div
@@ -247,75 +210,49 @@ function MiniNewspaperPreview({ config }: { config: NewspaperConfig }) {
     >
       <style>{MINI_NW_CSS}</style>
 
-      {fastFlipping ? (
-        /* Fast flip animation */
-        <div className="absolute inset-0 bg-amber-50 flex items-center justify-center">
-          {[...Array(4)].map((_, i) => (
+      {/* Background: current page */}
+      <div className="absolute inset-0">
+        {page?.image_url
+          ? <img src={page.image_url} className="w-full h-full object-cover" alt="" />
+          : <div className="w-full h-full flex items-center justify-center"><p className="text-[8px] text-stone-400">未設定圖片</p></div>
+        }
+      </div>
+
+      {/* Foreground: flipping-away page */}
+      {flipAnim && fromPage && (
+        <div
+          className="absolute inset-0"
+          style={{
+            transformStyle: 'preserve-3d',
+            transformOrigin: flipAnim.dir === 'fwd' ? 'left center' : 'right center',
+            animation: `${flipAnim.dir === 'fwd' ? 'miniFlipFwd' : 'miniFlipBack'} 0.42s ease-in-out forwards`,
+          }}
+        >
+          <div className="absolute inset-0" style={{ backfaceVisibility: 'hidden' }}>
+            {fromPage.image_url
+              ? <img src={fromPage.image_url} className="w-full h-full object-cover" alt="" />
+              : <div className="w-full h-full bg-stone-200" />
+            }
             <div
-              key={i}
-              className="absolute bg-white border border-stone-200 shadow-sm"
+              className="absolute inset-y-0 w-1/4 pointer-events-none"
               style={{
-                width: 56, height: 72,
-                left: '50%', top: '50%', marginLeft: -28, marginTop: -36,
-                transformOrigin: 'left center',
-                animation: 'miniPageSweep 0.9s ease-in-out infinite',
-                animationDelay: `${i * 0.22}s`,
+                [flipAnim.dir === 'fwd' ? 'right' : 'left']: 0,
+                background: flipAnim.dir === 'fwd'
+                  ? 'linear-gradient(to left, rgba(0,0,0,0.18) 0%, transparent 100%)'
+                  : 'linear-gradient(to right, rgba(0,0,0,0.18) 0%, transparent 100%)',
               }}
-            >
-              <div className="p-1.5 space-y-1">
-                {[0,1,2].map(j => <div key={j} className="h-1 bg-stone-100 rounded" style={{ width: `${50+j*15}%` }} />)}
-              </div>
-            </div>
+            />
+          </div>
+          <div className="absolute inset-0" style={{ transform: 'rotateY(180deg)', backfaceVisibility: 'hidden', backgroundColor: '#f4f2ed' }} />
+        </div>
+      )}
+
+      {pages.length > 1 && (
+        <div className="absolute bottom-2 left-0 right-0 flex justify-center gap-1 pointer-events-none">
+          {pages.map((_, i) => (
+            <span key={i} className={`w-1 h-1 rounded-full ${i === index ? 'bg-white shadow' : 'bg-white/40'}`} />
           ))}
         </div>
-      ) : (
-        <>
-          {/* Background: current page */}
-          <div className="absolute inset-0">
-            {page?.image_url
-              ? <img src={page.image_url} className="w-full h-full object-cover" alt="" />
-              : <div className="w-full h-full flex items-center justify-center"><p className="text-[8px] text-stone-400">未設定圖片</p></div>
-            }
-          </div>
-
-          {/* Foreground: flipping-away page */}
-          {flipAnim && fromPage && (
-            <div
-              className="absolute inset-0"
-              style={{
-                transformStyle: 'preserve-3d',
-                transformOrigin: flipAnim.dir === 'fwd' ? 'left center' : 'right center',
-                animation: `${flipAnim.dir === 'fwd' ? 'miniFlipFwd' : 'miniFlipBack'} 0.42s ease-in-out forwards`,
-              }}
-            >
-              <div className="absolute inset-0" style={{ backfaceVisibility: 'hidden' }}>
-                {fromPage.image_url
-                  ? <img src={fromPage.image_url} className="w-full h-full object-cover" alt="" />
-                  : <div className="w-full h-full bg-stone-200" />
-                }
-                <div
-                  className="absolute inset-y-0 w-1/4 pointer-events-none"
-                  style={{
-                    [flipAnim.dir === 'fwd' ? 'right' : 'left']: 0,
-                    background: flipAnim.dir === 'fwd'
-                      ? 'linear-gradient(to left, rgba(0,0,0,0.18) 0%, transparent 100%)'
-                      : 'linear-gradient(to right, rgba(0,0,0,0.18) 0%, transparent 100%)',
-                  }}
-                />
-              </div>
-              <div className="absolute inset-0" style={{ transform: 'rotateY(180deg)', backfaceVisibility: 'hidden', backgroundColor: '#f4f2ed' }} />
-            </div>
-          )}
-
-          {/* Page dots */}
-          {contentPages.length > 1 && (
-            <div className="absolute bottom-2 left-0 right-0 flex justify-center gap-1 pointer-events-none">
-              {contentPages.map((_, i) => (
-                <span key={i} className={`w-1 h-1 rounded-full ${i === contentIndex ? 'bg-white shadow' : 'bg-white/40'}`} />
-              ))}
-            </div>
-          )}
-        </>
       )}
     </div>
   )
@@ -367,11 +304,9 @@ function PreviewContent({ scene, interactive }: { scene: Scene; interactive?: bo
       const page = c.pages?.[0]
       return (
         <div className="w-full h-full bg-stone-100 flex flex-col">
-          {page?.fast_flip
-            ? <div className="flex-1 flex items-center justify-center bg-amber-50"><p className="text-[8px] text-stone-400">翻頁動畫頁</p></div>
-            : page?.image_url
-              ? <img src={page.image_url} className="w-full flex-1 object-cover" alt="" />
-              : <div className="flex-1 flex items-center justify-center"><p className="text-[8px] text-stone-400">未設定圖片</p></div>
+          {page?.image_url
+            ? <img src={page.image_url} className="w-full flex-1 object-cover" alt="" />
+            : <div className="flex-1 flex items-center justify-center"><p className="text-[8px] text-stone-400">未設定圖片</p></div>
           }
         </div>
       )

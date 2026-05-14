@@ -20,7 +20,6 @@ export interface AnimationConfig {
 
 export interface NewspaperPage {
   image_url: string
-  fast_flip?: boolean
 }
 
 export interface NewspaperConfig {

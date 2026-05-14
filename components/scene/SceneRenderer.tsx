@@ -314,51 +314,7 @@ const NW_CSS = `
     86%  { transform: rotateY(170deg); opacity: 1; }
     100% { transform: rotateY(180deg); opacity: 0; }
   }
-  @keyframes fastPageFlip {
-    0%, 8%    { transform: rotateY(0deg);   opacity: 1; }
-    48%       { transform: rotateY(-90deg);  opacity: 0.8; }
-    90%, 100% { transform: rotateY(-180deg); opacity: 0; }
-  }
 `
-
-// ── 快速翻頁動畫過場 ──────────────────────────────────────────────
-function FastFlipSequence({ onDone }: { onDone: () => void }) {
-  const onDoneRef = useRef(onDone)
-  useEffect(() => { onDoneRef.current = onDone }, [onDone])
-  useEffect(() => {
-    const t = setTimeout(() => onDoneRef.current(), 3000)
-    return () => clearTimeout(t)
-  }, [])
-
-  return (
-    <div className="min-h-screen bg-stone-100 flex items-center justify-center overflow-hidden">
-      <style>{NW_CSS}</style>
-      <div className="relative" style={{ width: 300, height: 400, perspective: '2000px' }}>
-        {[...Array(9)].map((_, i) => (
-          <div
-            key={i}
-            className="absolute bg-white border border-stone-200 shadow-lg"
-            style={{
-              inset: 0,
-              transformOrigin: 'left center',
-              transformStyle: 'preserve-3d',
-              animation: 'fastPageFlip 0.6s ease-in-out forwards',
-              animationDelay: `${i * 0.27}s`,
-            }}
-          >
-            <div className="absolute inset-0 p-8 pt-10" style={{ backfaceVisibility: 'hidden' }}>
-              <div className="h-3 bg-stone-100 rounded mb-4 w-2/3" />
-              {[...Array(6)].map((_, j) => (
-                <div key={j} className="h-2 bg-stone-50 rounded mb-2" style={{ width: `${55 + j * 6}%` }} />
-              ))}
-            </div>
-            <div className="absolute inset-0" style={{ transform: 'rotateY(180deg)', backfaceVisibility: 'hidden', backgroundColor: '#f4f2ed' }} />
-          </div>
-        ))}
-      </div>
-    </div>
-  )
-}
 
 // ── 報紙場景 ─────────────────────────────────────────────────────
 function NewspaperPageView({ page }: { page: NewspaperConfig['pages'][number] | undefined }) {
@@ -373,43 +329,17 @@ function NewspaperScene({ scene, onFinish }: { scene: Scene; onFinish: () => voi
   const pages = config.pages ?? []
   const [index, setIndex] = useState(0)
   const [flipAnim, setFlipAnim] = useState<{ fromIdx: number; dir: 'fwd' | 'back' } | null>(null)
-  const [fastFlipping, setFastFlipping] = useState(false)
-  const afterFastFlip = useRef(0)
   const touchStartX = useRef(0)
   const touchStartY = useRef(0)
 
-  // If index lands on a fast_flip page (e.g. first page), auto-trigger
-  useEffect(() => {
-    if (!fastFlipping && pages[index]?.fast_flip) {
-      let target = index + 1
-      while (target < pages.length && pages[target]?.fast_flip) target++
-      afterFastFlip.current = target
-      setFastFlipping(true)
-    }
-  }, [index]) // eslint-disable-line react-hooks/exhaustive-deps
-
   function advance(dir: 'fwd' | 'back') {
-    if (flipAnim || fastFlipping) return
+    if (flipAnim) return
     const next = index + (dir === 'fwd' ? 1 : -1)
     if (next < 0) return
     if (next >= pages.length) { onFinish(); return }
-    if (pages[next]?.fast_flip) {
-      let target = next + 1
-      while (target < pages.length && pages[target]?.fast_flip) target++
-      afterFastFlip.current = target
-      setFastFlipping(true)
-      return
-    }
     setFlipAnim({ fromIdx: index, dir })
     setIndex(next)
     setTimeout(() => setFlipAnim(null), 520)
-  }
-
-  function handleFastFlipDone() {
-    setFastFlipping(false)
-    const target = afterFastFlip.current
-    if (target >= pages.length) onFinish()
-    else setIndex(target)
   }
 
   function handleTouchStart(e: React.TouchEvent) {
@@ -433,19 +363,8 @@ function NewspaperScene({ scene, onFinish }: { scene: Scene; onFinish: () => voi
     )
   }
 
-  if (fastFlipping) {
-    return (
-      <>
-        <style>{NW_CSS}</style>
-        <FastFlipSequence onDone={handleFastFlipDone} />
-      </>
-    )
-  }
-
   const page = pages[index]
   const fromPage = flipAnim ? pages[flipAnim.fromIdx] : null
-  const contentPages = pages.filter(p => !p.fast_flip)
-  const contentIndex = contentPages.indexOf(page)
 
   return (
     <div
@@ -456,12 +375,10 @@ function NewspaperScene({ scene, onFinish }: { scene: Scene; onFinish: () => voi
       <style>{NW_CSS}</style>
 
       <div className="flex-1 relative overflow-hidden" style={{ perspective: '2000px' }}>
-        {/* Background: destination page */}
         <div className="absolute inset-0">
           <NewspaperPageView page={page} />
         </div>
 
-        {/* Foreground: the page flying away */}
         {flipAnim && fromPage && (
           <div
             className="absolute inset-0"
@@ -487,17 +404,15 @@ function NewspaperScene({ scene, onFinish }: { scene: Scene; onFinish: () => voi
           </div>
         )}
 
-        {/* Page dots overlay */}
-        {contentPages.length > 1 && (
+        {pages.length > 1 && (
           <div className="absolute bottom-5 left-0 right-0 flex justify-center gap-1.5 pointer-events-none">
-            {contentPages.map((_, i) => (
-              <span key={i} className={`w-1.5 h-1.5 rounded-full transition-colors ${i === contentIndex ? 'bg-white shadow' : 'bg-white/40'}`} />
+            {pages.map((_, i) => (
+              <span key={i} className={`w-1.5 h-1.5 rounded-full transition-colors ${i === index ? 'bg-white shadow' : 'bg-white/40'}`} />
             ))}
           </div>
         )}
 
-        {/* Swipe hint on last content page */}
-        {contentIndex === contentPages.length - 1 && contentPages.length > 0 && (
+        {index === pages.length - 1 && pages.length > 0 && (
           <div className="absolute bottom-12 right-5 text-xs text-white/50 pointer-events-none tracking-wide">左滑結束</div>
         )}
       </div>

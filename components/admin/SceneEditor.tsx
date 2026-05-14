@@ -278,46 +278,26 @@ function NewspaperForm({ config, onChange, onPickMedia }: FormProps) {
     onChange({ ...config, pages: next })
   }
 
-  let contentCount = 0
-
   return (
     <div className="space-y-3">
-      <p className="text-xs text-stone-400">左滑翻頁；快速翻頁過場會自動播放後跳至下一頁，不需設定圖片。</p>
-      {pages.map((page, i) => {
-        const isFast = !!(page.fast_flip)
-        if (!isFast) contentCount++
-        return (
-          <div key={i} className={`border rounded-xl p-3 space-y-2.5 ${isFast ? 'border-amber-200 bg-amber-50' : 'border-stone-100 bg-stone-50'}`}>
-            <div className="flex justify-between items-center">
-              <span className="text-xs font-semibold text-stone-500">
-                {isFast ? '⚡ 快速翻頁過場' : `第 ${contentCount} 頁`}
-              </span>
-              <button onClick={() => onChange({ ...config, pages: pages.filter((_, idx) => idx !== i) })} className="text-xs text-stone-300 hover:text-red-400">刪除</button>
-            </div>
-            {isFast ? (
-              <p className="text-xs text-amber-600 bg-amber-100 rounded-lg px-3 py-2">自動播放紙張翻動效果，播完後自動進入下一頁</p>
-            ) : (
-              <Field label="圖片">
-                <MediaButton value={(page.image_url as string) ?? ''} onChange={v => updatePage(i, 'image_url', v)} onPickMedia={() => onPickMedia(v => updatePage(i, 'image_url', v))} />
-              </Field>
-            )}
+      <p className="text-xs text-stone-400">每頁放一張圖片，左滑翻頁。</p>
+      {pages.map((page, i) => (
+        <div key={i} className="border border-stone-100 rounded-xl p-3 bg-stone-50 space-y-2.5">
+          <div className="flex justify-between items-center">
+            <span className="text-xs font-semibold text-stone-500">第 {i + 1} 頁</span>
+            <button onClick={() => onChange({ ...config, pages: pages.filter((_, idx) => idx !== i) })} className="text-xs text-stone-300 hover:text-red-400">刪除</button>
           </div>
-        )
-      })}
-      <div className="flex gap-2">
-        <button
-          onClick={() => onChange({ ...config, pages: [...pages, { image_url: '', fast_flip: false }] })}
-          className="flex-1 border border-dashed border-stone-300 hover:border-stone-500 text-stone-400 hover:text-stone-600 text-sm py-2.5 rounded-xl transition-colors"
-        >
-          + 新增圖片頁
-        </button>
-        <button
-          onClick={() => onChange({ ...config, pages: [...pages, { image_url: '', fast_flip: true }] })}
-          className="flex-1 border border-dashed border-amber-300 hover:border-amber-400 text-amber-500 hover:text-amber-700 text-sm py-2.5 rounded-xl transition-colors"
-        >
-          ⚡ 插入快速翻頁
-        </button>
-      </div>
+          <Field label="圖片">
+            <MediaButton value={(page.image_url as string) ?? ''} onChange={v => updatePage(i, 'image_url', v)} onPickMedia={() => onPickMedia(v => updatePage(i, 'image_url', v))} />
+          </Field>
+        </div>
+      ))}
+      <button
+        onClick={() => onChange({ ...config, pages: [...pages, { image_url: '' }] })}
+        className="w-full border border-dashed border-stone-300 hover:border-stone-500 text-stone-400 hover:text-stone-600 text-sm py-2.5 rounded-xl transition-colors"
+      >
+        + 新增頁面
+      </button>
     </div>
   )
 }
