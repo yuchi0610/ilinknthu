@@ -265,13 +265,21 @@ function MiniNewspaperPreview({ config }: { config: NewspaperConfig }) {
 }
 
 // ── 互動純文字預覽 ────────────────────────────────────────────────
+// Renders at the real phone design width (375px) then CSS-scales to preview
+// width (204px) so line breaks are pixel-identical to the actual site.
+const SCREEN_W = 204    // 224px frame - 2×10px padding
+const TEXT_REAL_W = 375
+const TEXT_SCALE = SCREEN_W / TEXT_REAL_W          // ≈ 0.544
+const TEXT_DESIGN_H = Math.round(PHONE_SCREEN_H / TEXT_SCALE)
+
 function MiniTextPreview({ config }: { config: TextConfig }) {
   const text = config.text ?? ''
   const typewriter = config.typewriter ?? true
-  const speed = Math.round((config.typewriter_speed ?? 45) * 0.6)
+  const speed = config.typewriter_speed ?? 45
   const opacity = (config.overlay_opacity ?? 50) / 100
   const [displayed, setDisplayed] = useState('')
   const [done, setDone] = useState(false)
+  const [replay, setReplay] = useState(0)
   const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
 
   useEffect(() => {
@@ -287,45 +295,48 @@ function MiniTextPreview({ config }: { config: TextConfig }) {
     }
     tick()
     return () => { if (timerRef.current) clearTimeout(timerRef.current) }
-  }, [text, typewriter, speed])
+  }, [text, typewriter, speed, replay])
 
   function handleTap() {
     if (!done) return
-    // replay
-    setDisplayed(''); setDone(false)
-    setTimeout(() => {
-      let i = 0
-      function tick() {
-        i++
-        setDisplayed(text.slice(0, i))
-        if (i < text.length) timerRef.current = setTimeout(tick, speed)
-        else setDone(true)
-      }
-      tick()
-    }, 50)
+    setReplay(r => r + 1)
   }
 
-  const fontSize = Math.round((config.font_size ?? 16) * 0.55)
   const color = config.text_color ?? '#ffffff'
+  const bgStyle = config.background_url
+    ? { backgroundImage: `url(${config.background_url})`, backgroundSize: 'cover', backgroundPosition: 'center' }
+    : { background: '#1c1917' }
 
   return (
     <div
-      className="w-full h-full relative flex items-center justify-center p-4 cursor-pointer select-none"
-      style={config.background_url
-        ? { backgroundImage: `url(${config.background_url})`, backgroundSize: 'cover', backgroundPosition: 'center' }
-        : { background: '#1c1917' }
-      }
+      className="cursor-pointer select-none"
+      style={{ width: SCREEN_W, height: PHONE_SCREEN_H, overflow: 'hidden', position: 'relative' }}
       onClick={handleTap}
     >
-      {config.background_url && <div className="absolute inset-0 bg-black" style={{ opacity }} />}
-      <div className="relative z-10 text-center">
-        <p className="leading-relaxed" style={{ fontSize, color }}>
-          {displayed || <span style={{ opacity: 0.3 }}>尚未輸入…</span>}
-          {!done && displayed && (
-            <span className="inline-block w-0.5 h-3 ml-0.5 align-middle animate-pulse" style={{ backgroundColor: color, opacity: 0.6 }} />
-          )}
-        </p>
-        {done && text && <p className="mt-3 text-center" style={{ fontSize: 6, color, opacity: 0.3 }}>點擊重播 ↺</p>}
+      {/* Scaled inner — mirrors TextScene layout exactly */}
+      <div style={{
+        transform: `scale(${TEXT_SCALE})`,
+        transformOrigin: 'top left',
+        width: TEXT_REAL_W,
+        height: TEXT_DESIGN_H,
+        position: 'absolute',
+        top: 0,
+        left: 0,
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'center',
+        ...bgStyle,
+      }}>
+        {config.background_url && <div className="absolute inset-0 bg-black" style={{ opacity }} />}
+        <div className="relative z-10 max-w-xs px-8 text-center">
+          <p className="leading-loose tracking-wide" style={{ fontSize: config.font_size ?? 16, color }}>
+            {displayed || <span style={{ opacity: 0.3 }}>尚未輸入…</span>}
+            {!done && displayed && (
+              <span className="inline-block w-0.5 h-5 ml-0.5 align-middle animate-pulse" style={{ backgroundColor: color, opacity: 0.6 }} />
+            )}
+          </p>
+          {done && text && <p className="text-xs mt-8 tracking-widest" style={{ color, opacity: 0.3 }}>點擊重播 ↺</p>}
+        </div>
       </div>
     </div>
   )
@@ -473,19 +484,34 @@ function PreviewContent({ scene, interactive }: { scene: Scene; interactive?: bo
     case 'text': {
       const c = config as unknown as TextConfig
       if (interactive) return <MiniTextPreview config={c} />
+      // Static thumbnail — same CSS scale so line breaks match the real site
       const opacity = (c.overlay_opacity ?? 50) / 100
+      const color = c.text_color ?? '#ffffff'
+      const bgStyle = c.background_url
+        ? { backgroundImage: `url(${c.background_url})`, backgroundSize: 'cover', backgroundPosition: 'center' }
+        : { background: '#1c1917' }
       return (
-        <div className="w-full h-full relative flex items-center justify-center p-4"
-          style={c.background_url
-            ? { backgroundImage: `url(${c.background_url})`, backgroundSize: 'cover', backgroundPosition: 'center' }
-            : { background: '#1c1917' }
-          }
-        >
-          {c.background_url && <div className="absolute inset-0 bg-black" style={{ opacity }} />}
-          <p className="relative text-center leading-relaxed"
-            style={{ fontSize: Math.round((c.font_size ?? 16) * 0.55), color: c.text_color ?? '#ffffff' }}>
-            {c.text || <span style={{ opacity: 0.3 }}>尚未輸入…</span>}
-          </p>
+        <div style={{ width: SCREEN_W, height: PHONE_SCREEN_H, overflow: 'hidden', position: 'relative' }}>
+          <div style={{
+            transform: `scale(${TEXT_SCALE})`,
+            transformOrigin: 'top left',
+            width: TEXT_REAL_W,
+            height: TEXT_DESIGN_H,
+            position: 'absolute',
+            top: 0,
+            left: 0,
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            ...bgStyle,
+          }}>
+            {c.background_url && <div className="absolute inset-0 bg-black" style={{ opacity }} />}
+            <div className="relative z-10 max-w-xs px-8 text-center">
+              <p className="leading-loose tracking-wide" style={{ fontSize: c.font_size ?? 16, color }}>
+                {c.text || <span style={{ opacity: 0.3 }}>尚未輸入…</span>}
+              </p>
+            </div>
+          </div>
         </div>
       )
     }
