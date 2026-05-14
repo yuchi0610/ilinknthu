@@ -188,12 +188,17 @@ function MiniNewspaperPreview({ config }: { config: NewspaperConfig }) {
   }
 
   function onDragStart(x: number) { dragStartX.current = x }
-  function onDragEnd(x: number) {
+  function onDragEnd(e: React.MouseEvent | React.TouchEvent, x: number) {
     if (dragStartX.current === null) return
     const dx = x - dragStartX.current
     dragStartX.current = null
-    if (Math.abs(dx) < 20) return
-    advance(dx < 0 ? 'fwd' : 'back')
+    if (Math.abs(dx) < 12) {
+      // treat as click — right half forward, left half back
+      const rect = (e.currentTarget as HTMLElement).getBoundingClientRect()
+      advance(x - rect.left > rect.width / 2 ? 'fwd' : 'back')
+    } else {
+      advance(dx < 0 ? 'fwd' : 'back')
+    }
   }
 
   const page = pages[index]
@@ -204,9 +209,9 @@ function MiniNewspaperPreview({ config }: { config: NewspaperConfig }) {
       className="w-full h-full relative overflow-hidden select-none"
       style={{ perspective: '600px', backgroundColor: '#f4f2ed' }}
       onTouchStart={e => onDragStart(e.touches[0].clientX)}
-      onTouchEnd={e => onDragEnd(e.changedTouches[0].clientX)}
+      onTouchEnd={e => onDragEnd(e, e.changedTouches[0].clientX)}
       onMouseDown={e => onDragStart(e.clientX)}
-      onMouseUp={e => onDragEnd(e.clientX)}
+      onMouseUp={e => onDragEnd(e, e.clientX)}
     >
       <style>{MINI_NW_CSS}</style>
 

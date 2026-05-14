@@ -428,6 +428,13 @@ function SignatureScene({ scene, onFinish }: { scene: Scene; onFinish: () => voi
   const [signed, setSigned] = useState(false)
   const [uploading, setUploading] = useState(false)
 
+  useEffect(() => {
+    const canvas = canvasRef.current
+    if (!canvas) return
+    canvas.width = canvas.offsetWidth
+    canvas.height = canvas.offsetHeight
+  }, [])
+
   function getPos(e: React.MouseEvent | React.TouchEvent) {
     const canvas = canvasRef.current!
     const rect = canvas.getBoundingClientRect()
@@ -451,7 +458,7 @@ function SignatureScene({ scene, onFinish }: { scene: Scene; onFinish: () => voi
     if (!ctx) return
     const { x, y } = getPos(e)
     ctx.lineTo(x, y)
-    ctx.strokeStyle = '#1a1a1a'; ctx.lineWidth = 2; ctx.lineCap = 'round'
+    ctx.strokeStyle = '#ffffff'; ctx.lineWidth = 2.5; ctx.lineCap = 'round'; ctx.lineJoin = 'round'
     ctx.stroke()
     setSigned(true)
   }
@@ -479,20 +486,21 @@ function SignatureScene({ scene, onFinish }: { scene: Scene; onFinish: () => voi
   }
 
   return (
-    <div className="min-h-screen bg-black text-white flex flex-col items-center justify-center p-6">
-      {config.document_url && (
-        <img src={config.document_url} alt="協議文件" className="max-w-sm w-full mb-6 rounded opacity-90" />
-      )}
-      <p className="text-sm text-zinc-400 mb-4">{config.instruction || '請在此簽署您的名字'}</p>
-      <div className="border border-white/20 rounded bg-white mb-4">
-        <canvas ref={canvasRef} width={320} height={120} className="block touch-none"
-          onMouseDown={startDraw} onMouseMove={draw} onMouseUp={endDraw}
-          onTouchStart={startDraw} onTouchMove={draw} onTouchEnd={endDraw} />
-      </div>
-      <div className="flex gap-4">
-        <button onClick={clearCanvas} className="text-xs text-zinc-500 hover:text-white px-4 py-2 border border-zinc-700 rounded">重寫</button>
+    <div className="min-h-screen relative overflow-hidden bg-black select-none">
+      <canvas
+        ref={canvasRef}
+        className="absolute inset-0 w-full h-full touch-none"
+        style={{ cursor: 'crosshair' }}
+        onMouseDown={startDraw} onMouseMove={draw} onMouseUp={endDraw} onMouseLeave={endDraw}
+        onTouchStart={startDraw} onTouchMove={draw} onTouchEnd={endDraw}
+      />
+      <p className="absolute top-10 left-0 right-0 text-center text-white/40 text-sm pointer-events-none tracking-wide">
+        {config.instruction || '在畫面上簽署您的名字'}
+      </p>
+      <div className="absolute bottom-10 left-0 right-0 flex justify-center gap-4">
+        <button onClick={clearCanvas} className="text-sm text-zinc-400 hover:text-white px-5 py-2.5 border border-zinc-700 hover:border-zinc-400 rounded-lg transition-colors">重寫</button>
         <button onClick={handleSubmit} disabled={!signed || uploading}
-          className="text-xs bg-white text-black px-6 py-2 rounded disabled:opacity-40 hover:bg-zinc-200 transition-colors">
+          className="text-sm bg-white text-black px-8 py-2.5 rounded-lg disabled:opacity-30 hover:bg-zinc-100 transition-colors font-medium">
           {uploading ? '提交中…' : '確認簽名'}
         </button>
       </div>
