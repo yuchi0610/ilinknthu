@@ -160,7 +160,7 @@ function GameOverScreen({ score, normalCount, greenCount, onRestart, onContinue 
 }
 
 // ── Main Game Component ───────────────────────────────────────────
-export default function OysterGame({ onFinish }: { onFinish: (score: number) => void }) {
+export default function OysterGame({ onFinish, style }: { onFinish: (score: number) => void; style?: React.CSSProperties }) {
   const [gameState, setGameState] = useState<GameState>({
     status: GameStatus.START, score: 0, timeLeft: CFG.DURATION, normalCount: 0, greenCount: 0,
   })
@@ -290,7 +290,7 @@ export default function OysterGame({ onFinish }: { onFinish: (score: number) => 
   const isLowTime = gameState.timeLeft <= CFG.FRENZY_THRESHOLD_SECONDS
 
   return (
-    <div className="relative w-full h-full bg-gray-900 overflow-hidden select-none touch-none flex justify-center">
+    <div className="relative w-full bg-gray-900 overflow-hidden select-none touch-none flex justify-center" style={{ minHeight: '100dvh', ...style }}>
       <div
         ref={containerRef}
         className="relative w-full max-w-3xl h-full bg-cover bg-center bg-no-repeat overflow-hidden cursor-crosshair"
