@@ -94,12 +94,7 @@ function DialogScene({ scene, onFinish }: { scene: Scene; onFinish: () => void }
   }, [index, currentText, typewriter, speed])
 
   function handleTap() {
-    if (!done) {
-      if (timerRef.current) clearTimeout(timerRef.current)
-      setDisplayed(currentText)
-      setDone(true)
-      return
-    }
+    if (!done) return
     if (index < dialogs.length - 1) setIndex(i => i + 1)
     else onFinish()
   }
@@ -244,12 +239,7 @@ function TextScene({ scene, onFinish }: { scene: Scene; onFinish: () => void }) 
   }, [text, typewriter, speed])
 
   function handleTap() {
-    if (!done) {
-      if (timerRef.current) clearTimeout(timerRef.current)
-      setDisplayed(text)
-      setDone(true)
-      return
-    }
+    if (!done) return
     onFinish()
   }
 

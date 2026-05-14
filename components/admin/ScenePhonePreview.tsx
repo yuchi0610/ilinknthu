@@ -74,12 +74,7 @@ function MiniDialogPreview({ config }: { config: DialogConfig }) {
 
   function handleClick(e: React.MouseEvent) {
     e.stopPropagation()
-    if (!done) {
-      if (timerRef.current) clearTimeout(timerRef.current)
-      setDisplayed(currentText)
-      setDone(true)
-      return
-    }
+    if (!done) return
     if (index < dialogs.length - 1) setIndex(i => i + 1)
     else setIndex(0)
   }
@@ -295,11 +290,7 @@ function MiniTextPreview({ config }: { config: TextConfig }) {
   }, [text, typewriter, speed])
 
   function handleTap() {
-    if (!done) {
-      if (timerRef.current) clearTimeout(timerRef.current)
-      setDisplayed(text); setDone(true)
-      return
-    }
+    if (!done) return
     // replay
     setDisplayed(''); setDone(false)
     setTimeout(() => {
