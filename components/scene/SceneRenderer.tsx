@@ -71,20 +71,27 @@ function DialogScene({ scene, onFinish }: { scene: Scene; onFinish: () => void }
 
   const current = dialogs[index]
   const currentText = current?.text ?? ''
+  const typewriter = config.typewriter ?? true
+  const speed = config.typewriter_speed ?? 35
 
   useEffect(() => {
     setDisplayed('')
     setDone(false)
+    if (!typewriter || !currentText) {
+      setDisplayed(currentText)
+      setDone(true)
+      return
+    }
     let i = 0
     function tick() {
       i++
       setDisplayed(currentText.slice(0, i))
-      if (i < currentText.length) timerRef.current = setTimeout(tick, 35)
+      if (i < currentText.length) timerRef.current = setTimeout(tick, speed)
       else setDone(true)
     }
-    if (currentText) tick()
+    tick()
     return () => { if (timerRef.current) clearTimeout(timerRef.current) }
-  }, [index, currentText])
+  }, [index, currentText, typewriter, speed])
 
   function handleTap() {
     if (!done) {
@@ -214,19 +221,27 @@ function TextScene({ scene, onFinish }: { scene: Scene; onFinish: () => void }) 
   const [done, setDone] = useState(false)
   const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
 
+  const typewriter = config.typewriter ?? true
+  const speed = config.typewriter_speed ?? 45
+
   useEffect(() => {
     setDisplayed('')
     setDone(false)
+    if (!typewriter || !text) {
+      setDisplayed(text)
+      setDone(true)
+      return
+    }
     let i = 0
     function tick() {
       i++
       setDisplayed(text.slice(0, i))
-      if (i < text.length) timerRef.current = setTimeout(tick, 45)
+      if (i < text.length) timerRef.current = setTimeout(tick, speed)
       else setDone(true)
     }
-    if (text) tick()
+    tick()
     return () => { if (timerRef.current) clearTimeout(timerRef.current) }
-  }, [text])
+  }, [text, typewriter, speed])
 
   function handleTap() {
     if (!done) {

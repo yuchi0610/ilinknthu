@@ -54,20 +54,23 @@ function MiniDialogPreview({ config }: { config: DialogConfig }) {
   const current = dialogs[index]
   const currentText = current?.text ?? ''
 
+  const typewriter = config.typewriter ?? true
+  const speed = Math.round((config.typewriter_speed ?? 35) * 0.6) // scale to mini preview pace
+
   useEffect(() => {
     setDisplayed('')
     setDone(false)
-    if (!currentText) { setDone(true); return }
+    if (!typewriter || !currentText) { setDisplayed(currentText); setDone(true); return }
     let i = 0
     function tick() {
       i++
       setDisplayed(currentText.slice(0, i))
-      if (i < currentText.length) timerRef.current = setTimeout(tick, 20)
+      if (i < currentText.length) timerRef.current = setTimeout(tick, speed)
       else setDone(true)
     }
     tick()
     return () => { if (timerRef.current) clearTimeout(timerRef.current) }
-  }, [index, currentText])
+  }, [index, currentText, typewriter, speed])
 
   function handleClick(e: React.MouseEvent) {
     e.stopPropagation()

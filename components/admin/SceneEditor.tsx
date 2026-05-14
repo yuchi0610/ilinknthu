@@ -124,6 +124,23 @@ function TextForm({ config, onChange, onPickMedia }: FormProps) {
           <div className="flex justify-between text-xs text-stone-400 mt-1"><span>原圖</span><span>全黑</span></div>
         </Field>
       )}
+
+      {/* 打字機效果 */}
+      <div className="border border-stone-100 rounded-xl p-4 bg-stone-50 space-y-3">
+        <p className="text-xs font-semibold text-stone-500 uppercase tracking-widest">打字機效果</p>
+        <Toggle label="啟用打字機效果" value={c.typewriter ?? true} onChange={v => onChange({ ...config, typewriter: v })} />
+        {(c.typewriter ?? true) && (
+          <Field label="打字速度">
+            <select value={c.typewriter_speed ?? 45} onChange={e => onChange({ ...config, typewriter_speed: Number(e.target.value) })} className={inputCls}>
+              <option value={120}>很慢</option>
+              <option value={60}>慢</option>
+              <option value={45}>中（預設）</option>
+              <option value={18}>快</option>
+              <option value={8}>很快</option>
+            </select>
+          </Field>
+        )}
+      </div>
     </div>
   )
 }
@@ -199,6 +216,23 @@ function DialogForm({ config, onChange, onPickMedia }: FormProps) {
             </div>
           </Field>
         </div>
+      </div>
+
+      {/* 打字機效果 */}
+      <div className="border border-stone-100 rounded-xl p-4 bg-stone-50 space-y-3">
+        <p className="text-xs font-semibold text-stone-500 uppercase tracking-widest">打字機效果</p>
+        <Toggle label="啟用打字機效果" value={c.typewriter ?? true} onChange={v => onChange({ ...config, typewriter: v })} />
+        {(c.typewriter ?? true) && (
+          <Field label="打字速度">
+            <select value={c.typewriter_speed ?? 35} onChange={e => onChange({ ...config, typewriter_speed: Number(e.target.value) })} className={inputCls}>
+              <option value={120}>很慢</option>
+              <option value={60}>慢</option>
+              <option value={35}>中（預設）</option>
+              <option value={18}>快</option>
+              <option value={8}>很快</option>
+            </select>
+          </Field>
+        )}
       </div>
 
       {/* 對話列表 */}

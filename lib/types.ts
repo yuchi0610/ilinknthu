@@ -43,14 +43,18 @@ export interface DialogConfig {
   name_color?: string
   text_font_size?: number  // px, default 14
   text_color?: string
+  typewriter?: boolean     // default true
+  typewriter_speed?: number // ms per character, default 35
 }
 
 export interface TextConfig {
   text: string
   background_url?: string
   overlay_opacity?: number
-  font_size?: number   // px, default 16
-  text_color?: string  // default #ffffff
+  font_size?: number        // px, default 16
+  text_color?: string       // default #ffffff
+  typewriter?: boolean      // default true
+  typewriter_speed?: number // ms per character, default 45
 }
 
 export interface SignatureConfig {
