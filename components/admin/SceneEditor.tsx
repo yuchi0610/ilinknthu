@@ -315,17 +315,36 @@ function SignatureForm({ config, onChange, onPickMedia }: FormProps) {
   )
 }
 
+const AVAILABLE_GAMES = [
+  { id: 'oyster', label: '採收牡蠣大作戰', description: '60 秒接物遊戲，接正常牡蠣得分，避開綠牡蠣' },
+]
+
 function GameForm({ config, onChange }: FormProps) {
+  const gameId = (config.game_id as string) ?? ''
   return (
     <div className="space-y-4">
-      <Field label="遊戲 ID"><input value={(config.game_id as string) ?? ''} onChange={e => onChange({ ...config, game_id: e.target.value })} className={inputCls} placeholder="game-01" /></Field>
-      <div className="grid grid-cols-2 gap-3">
-        <Field label="最高分數"><input type="number" value={(config.max_score as number) ?? 100} onChange={e => onChange({ ...config, max_score: Number(e.target.value) })} className={inputCls} /></Field>
-        <Field label="時間限制（秒）"><input type="number" value={(config.time_limit as number) ?? 60} onChange={e => onChange({ ...config, time_limit: Number(e.target.value) })} className={inputCls} /></Field>
-      </div>
-      <Field label="遊戲說明">
-        <textarea value={(config.description as string) ?? ''} onChange={e => onChange({ ...config, description: e.target.value })} className={`${inputCls} resize-none`} rows={3} />
+      <Field label="選擇遊戲">
+        <div className="space-y-2">
+          {AVAILABLE_GAMES.map(g => (
+            <button
+              key={g.id}
+              type="button"
+              onClick={() => onChange({ ...config, game_id: g.id })}
+              className={`w-full text-left px-4 py-3 rounded-xl border transition-all ${
+                gameId === g.id
+                  ? 'border-stone-800 bg-stone-50 shadow-sm'
+                  : 'border-stone-200 hover:border-stone-400'
+              }`}
+            >
+              <p className="text-sm font-semibold text-stone-800">{g.label}</p>
+              <p className="text-xs text-stone-400 mt-0.5">{g.description}</p>
+            </button>
+          ))}
+        </div>
       </Field>
+      {!gameId && (
+        <p className="text-xs text-amber-600 bg-amber-50 rounded-lg px-3 py-2">請先選擇一個遊戲</p>
+      )}
     </div>
   )
 }
