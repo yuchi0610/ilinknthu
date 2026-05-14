@@ -269,6 +269,77 @@ function MiniNewspaperPreview({ config }: { config: NewspaperConfig }) {
   )
 }
 
+// ── 互動純文字預覽 ────────────────────────────────────────────────
+function MiniTextPreview({ config }: { config: TextConfig }) {
+  const text = config.text ?? ''
+  const typewriter = config.typewriter ?? true
+  const speed = Math.round((config.typewriter_speed ?? 45) * 0.6)
+  const opacity = (config.overlay_opacity ?? 50) / 100
+  const [displayed, setDisplayed] = useState('')
+  const [done, setDone] = useState(false)
+  const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
+
+  useEffect(() => {
+    setDisplayed('')
+    setDone(false)
+    if (!typewriter || !text) { setDisplayed(text); setDone(true); return }
+    let i = 0
+    function tick() {
+      i++
+      setDisplayed(text.slice(0, i))
+      if (i < text.length) timerRef.current = setTimeout(tick, speed)
+      else setDone(true)
+    }
+    tick()
+    return () => { if (timerRef.current) clearTimeout(timerRef.current) }
+  }, [text, typewriter, speed])
+
+  function handleTap() {
+    if (!done) {
+      if (timerRef.current) clearTimeout(timerRef.current)
+      setDisplayed(text); setDone(true)
+      return
+    }
+    // replay
+    setDisplayed(''); setDone(false)
+    setTimeout(() => {
+      let i = 0
+      function tick() {
+        i++
+        setDisplayed(text.slice(0, i))
+        if (i < text.length) timerRef.current = setTimeout(tick, speed)
+        else setDone(true)
+      }
+      tick()
+    }, 50)
+  }
+
+  const fontSize = Math.round((config.font_size ?? 16) * 0.55)
+  const color = config.text_color ?? '#ffffff'
+
+  return (
+    <div
+      className="w-full h-full relative flex items-center justify-center p-4 cursor-pointer select-none"
+      style={config.background_url
+        ? { backgroundImage: `url(${config.background_url})`, backgroundSize: 'cover', backgroundPosition: 'center' }
+        : { background: '#1c1917' }
+      }
+      onClick={handleTap}
+    >
+      {config.background_url && <div className="absolute inset-0 bg-black" style={{ opacity }} />}
+      <div className="relative z-10 text-center">
+        <p className="leading-relaxed" style={{ fontSize, color }}>
+          {displayed || <span style={{ opacity: 0.3 }}>尚未輸入…</span>}
+          {!done && displayed && (
+            <span className="inline-block w-0.5 h-3 ml-0.5 align-middle animate-pulse" style={{ backgroundColor: color, opacity: 0.6 }} />
+          )}
+        </p>
+        {done && text && <p className="mt-3 text-center" style={{ fontSize: 6, color, opacity: 0.3 }}>點擊重播 ↺</p>}
+      </div>
+    </div>
+  )
+}
+
 // ── 互動簽名預覽 ──────────────────────────────────────────────────
 function MiniSignaturePreview({ config }: { config: SignatureConfig }) {
   const canvasRef = useRef<HTMLCanvasElement>(null)
@@ -410,6 +481,7 @@ function PreviewContent({ scene, interactive }: { scene: Scene; interactive?: bo
 
     case 'text': {
       const c = config as unknown as TextConfig
+      if (interactive) return <MiniTextPreview config={c} />
       const opacity = (c.overlay_opacity ?? 50) / 100
       return (
         <div className="w-full h-full relative flex items-center justify-center p-4"
