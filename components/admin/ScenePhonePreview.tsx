@@ -457,7 +457,7 @@ function PreviewContent({ scene, interactive }: { scene: Scene; interactive?: bo
 
     case 'game': {
       const c = config as unknown as GameConfig
-      if (interactive && c.game_id === 'oyster') return <OysterGame onFinish={() => {}} style={{ minHeight: 0, height: PHONE_SCREEN_H }} />
+      if (interactive && c.game_id === 'oyster') return <OysterGame onFinish={() => {}} style={{ height: PHONE_SCREEN_H }} />
       return (
         <div className="w-full h-full bg-black flex flex-col items-center justify-center gap-2 p-3">
           <p className="text-white text-[10px] font-bold text-center">{c.title || scene.title}</p>

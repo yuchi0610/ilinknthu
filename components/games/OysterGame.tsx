@@ -290,10 +290,10 @@ export default function OysterGame({ onFinish, style }: { onFinish: (score: numb
   const isLowTime = gameState.timeLeft <= CFG.FRENZY_THRESHOLD_SECONDS
 
   return (
-    <div className="relative w-full bg-gray-900 overflow-hidden select-none touch-none flex justify-center" style={{ minHeight: '100dvh', ...style }}>
+    <div className="relative w-full bg-gray-900 overflow-hidden select-none touch-none" style={{ height: '100dvh', ...style }}>
       <div
         ref={containerRef}
-        className="relative w-full max-w-3xl h-full bg-cover bg-center bg-no-repeat overflow-hidden cursor-crosshair"
+        className="absolute inset-0 bg-cover bg-center bg-no-repeat overflow-hidden cursor-crosshair"
         style={{ backgroundImage: `url(${ASSETS.BACKGROUND})` }}
         onTouchMove={e => handleMove(e.touches[0].clientX)}
         onMouseMove={e => { if (e.buttons === 1) handleMove(e.clientX) }}
