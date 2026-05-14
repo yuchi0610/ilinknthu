@@ -34,9 +34,9 @@ const MINI_NW_CSS = `
     100% { transform: rotateY(180deg); opacity: 0; }
   }
   @keyframes miniPageSweep {
-    0%, 12% { transform: rotateY(0deg); opacity: 1; }
-    60%     { transform: rotateY(-85deg); opacity: 0.4; }
-    61%, 100% { transform: rotateY(-180deg); opacity: 0; }
+    0%, 10% { transform: rotateY(0deg);    opacity: 1; }
+    55%     { transform: rotateY(-85deg);   opacity: 0.5; }
+    56%, 100% { transform: rotateY(-180deg); opacity: 0; }
   }
 `
 
@@ -172,40 +172,94 @@ function MiniDialogPreview({ config }: { config: DialogConfig }) {
   )
 }
 
-// ── 互動報紙預覽（書頁翻頁效果） ──────────────────────────────────
+// ── 互動報紙預覽（滑動翻頁） ──────────────────────────────────────
 function MiniNewspaperPreview({ config }: { config: NewspaperConfig }) {
   const pages = config.pages ?? []
   const [index, setIndex] = useState(0)
   const [flipAnim, setFlipAnim] = useState<{ fromIdx: number; dir: 'fwd' | 'back' } | null>(null)
+  const [fastFlipping, setFastFlipping] = useState(false)
+  const afterFastFlip = useRef(0)
+  const dragStartX = useRef<number | null>(null)
+
+  // Auto-trigger fast flip if current page is a fast_flip marker
+  useEffect(() => {
+    if (!fastFlipping && pages[index]?.fast_flip) {
+      let target = index + 1
+      while (target < pages.length && pages[target]?.fast_flip) target++
+      afterFastFlip.current = Math.min(target, pages.length - 1)
+      setFastFlipping(true)
+    }
+  }, [index]) // eslint-disable-line react-hooks/exhaustive-deps
+
+  // Auto-finish fast flip sequence after 2s in preview
+  useEffect(() => {
+    if (!fastFlipping) return
+    const t = setTimeout(() => {
+      setFastFlipping(false)
+      const target = afterFastFlip.current
+      setIndex(target < pages.length ? target : Math.max(0, pages.length - 1))
+    }, 2000)
+    return () => clearTimeout(t)
+  }, [fastFlipping, pages.length])
 
   if (!pages.length) {
     return <div className="w-full h-full bg-stone-100 flex items-center justify-center"><p className="text-[8px] text-stone-400">尚未新增頁面</p></div>
   }
 
-  function goTo(next: number, dir: 'fwd' | 'back') {
-    if (flipAnim || next < 0 || next >= pages.length) return
+  function advance(dir: 'fwd' | 'back') {
+    if (flipAnim || fastFlipping) return
+    const next = index + (dir === 'fwd' ? 1 : -1)
+    if (next < 0 || next >= pages.length) return
+    if (pages[next]?.fast_flip) {
+      let target = next + 1
+      while (target < pages.length && pages[target]?.fast_flip) target++
+      afterFastFlip.current = Math.min(target, pages.length - 1)
+      setFastFlipping(true)
+      return
+    }
     setFlipAnim({ fromIdx: index, dir })
     setIndex(next)
     setTimeout(() => setFlipAnim(null), 420)
   }
 
+  function onDragStart(x: number) { dragStartX.current = x }
+  function onDragEnd(x: number) {
+    if (dragStartX.current === null) return
+    const dx = x - dragStartX.current
+    dragStartX.current = null
+    if (Math.abs(dx) < 20) return
+    advance(dx < 0 ? 'fwd' : 'back')
+  }
+
   const page = pages[index]
   const fromPage = flipAnim ? pages[flipAnim.fromIdx] : null
+  const contentPages = pages.filter(p => !p.fast_flip)
+  const contentIndex = contentPages.indexOf(page)
 
   return (
-    <div className="w-full h-full bg-stone-100 flex flex-col">
+    <div
+      className="w-full h-full relative overflow-hidden select-none"
+      style={{ perspective: '600px', backgroundColor: '#f4f2ed' }}
+      onTouchStart={e => onDragStart(e.touches[0].clientX)}
+      onTouchEnd={e => onDragEnd(e.changedTouches[0].clientX)}
+      onMouseDown={e => onDragStart(e.clientX)}
+      onMouseUp={e => onDragEnd(e.clientX)}
+    >
       <style>{MINI_NW_CSS}</style>
 
-      {page?.fast_flip ? (
-        <div className="flex-1 relative overflow-hidden bg-amber-50" style={{ perspective: '500px' }}>
+      {fastFlipping ? (
+        /* Fast flip animation */
+        <div className="absolute inset-0 bg-amber-50 flex items-center justify-center">
           {[...Array(4)].map((_, i) => (
-            <div key={i} className="absolute bg-white border border-stone-200 shadow-sm rounded"
+            <div
+              key={i}
+              className="absolute bg-white border border-stone-200 shadow-sm"
               style={{
                 width: 56, height: 72,
                 left: '50%', top: '50%', marginLeft: -28, marginTop: -36,
                 transformOrigin: 'left center',
-                animation: 'miniPageSweep 1.3s ease-in-out infinite',
-                animationDelay: `${i * 0.32}s`,
+                animation: 'miniPageSweep 0.9s ease-in-out infinite',
+                animationDelay: `${i * 0.22}s`,
               }}
             >
               <div className="p-1.5 space-y-1">
@@ -215,14 +269,15 @@ function MiniNewspaperPreview({ config }: { config: NewspaperConfig }) {
           ))}
         </div>
       ) : (
-        <div className="flex-1 relative overflow-hidden" style={{ perspective: '600px' }}>
-          {/* Background: current (destination) page */}
+        <>
+          {/* Background: current page */}
           <div className="absolute inset-0">
             {page?.image_url
               ? <img src={page.image_url} className="w-full h-full object-cover" alt="" />
               : <div className="w-full h-full flex items-center justify-center"><p className="text-[8px] text-stone-400">未設定圖片</p></div>
             }
           </div>
+
           {/* Foreground: flipping-away page */}
           {flipAnim && fromPage && (
             <div
@@ -238,21 +293,29 @@ function MiniNewspaperPreview({ config }: { config: NewspaperConfig }) {
                   ? <img src={fromPage.image_url} className="w-full h-full object-cover" alt="" />
                   : <div className="w-full h-full bg-stone-200" />
                 }
+                <div
+                  className="absolute inset-y-0 w-1/4 pointer-events-none"
+                  style={{
+                    [flipAnim.dir === 'fwd' ? 'right' : 'left']: 0,
+                    background: flipAnim.dir === 'fwd'
+                      ? 'linear-gradient(to left, rgba(0,0,0,0.18) 0%, transparent 100%)'
+                      : 'linear-gradient(to right, rgba(0,0,0,0.18) 0%, transparent 100%)',
+                  }}
+                />
               </div>
               <div className="absolute inset-0" style={{ transform: 'rotateY(180deg)', backfaceVisibility: 'hidden', backgroundColor: '#f4f2ed' }} />
             </div>
           )}
-        </div>
-      )}
 
-      {pages.length > 1 && (
-        <div className="flex items-center justify-between px-2 py-1.5 border-t border-stone-200 bg-white flex-shrink-0">
-          <button onClick={e => { e.stopPropagation(); goTo(index - 1, 'back') }}
-            className="text-[8px] text-stone-400 disabled:opacity-30" disabled={index === 0 || !!flipAnim}>←</button>
-          <span className="text-[7px] text-stone-400">{index + 1}/{pages.length}</span>
-          <button onClick={e => { e.stopPropagation(); goTo(index + 1, 'fwd') }}
-            className="text-[8px] text-stone-400 disabled:opacity-30" disabled={index === pages.length - 1 || !!flipAnim}>→</button>
-        </div>
+          {/* Page dots */}
+          {contentPages.length > 1 && (
+            <div className="absolute bottom-2 left-0 right-0 flex justify-center gap-1 pointer-events-none">
+              {contentPages.map((_, i) => (
+                <span key={i} className={`w-1 h-1 rounded-full ${i === contentIndex ? 'bg-white shadow' : 'bg-white/40'}`} />
+              ))}
+            </div>
+          )}
+        </>
       )}
     </div>
   )
