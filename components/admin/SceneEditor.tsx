@@ -305,11 +305,11 @@ function NewspaperForm({ config, onChange, onPickMedia }: FormProps) {
 function SignatureForm({ config, onChange, onPickMedia }: FormProps) {
   return (
     <div className="space-y-4">
-      <Field label="協議文件圖片">
-        <MediaButton value={(config.document_url as string) ?? ''} onChange={v => onChange({ ...config, document_url: v })} onPickMedia={() => onPickMedia(v => onChange({ ...config, document_url: v }))} />
+      <Field label="背景圖片" hint="選填">
+        <MediaButton value={(config.background_url as string) ?? ''} onChange={v => onChange({ ...config, background_url: v })} onPickMedia={() => onPickMedia(v => onChange({ ...config, background_url: v }))} />
       </Field>
       <Field label="說明文字">
-        <input value={(config.instruction as string) ?? ''} onChange={e => onChange({ ...config, instruction: e.target.value })} className={inputCls} placeholder="請在此簽署您的名字" />
+        <input value={(config.instruction as string) ?? ''} onChange={e => onChange({ ...config, instruction: e.target.value })} className={inputCls} placeholder="請在畫面上簽署您的名字" />
       </Field>
     </div>
   )

@@ -56,6 +56,7 @@ export interface TextConfig {
 export interface SignatureConfig {
   document_url: string
   instruction: string
+  background_url?: string
   signature_area: { x: number; y: number; width: number; height: number }
 }
 

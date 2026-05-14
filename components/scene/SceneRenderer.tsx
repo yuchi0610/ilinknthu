@@ -458,7 +458,7 @@ function SignatureScene({ scene, onFinish }: { scene: Scene; onFinish: () => voi
     if (!ctx) return
     const { x, y } = getPos(e)
     ctx.lineTo(x, y)
-    ctx.strokeStyle = '#ffffff'; ctx.lineWidth = 2.5; ctx.lineCap = 'round'; ctx.lineJoin = 'round'
+    ctx.strokeStyle = '#1a1a1a'; ctx.lineWidth = 2.5; ctx.lineCap = 'round'; ctx.lineJoin = 'round'
     ctx.stroke()
     setSigned(true)
   }
@@ -485,8 +485,16 @@ function SignatureScene({ scene, onFinish }: { scene: Scene; onFinish: () => voi
     onFinish()
   }
 
+  const hasBg = !!config.background_url
+
   return (
-    <div className="min-h-screen relative overflow-hidden bg-black select-none">
+    <div
+      className="min-h-screen relative overflow-hidden select-none"
+      style={hasBg
+        ? { backgroundImage: `url(${config.background_url})`, backgroundSize: 'cover', backgroundPosition: 'center' }
+        : { backgroundColor: '#f5f0e8' }
+      }
+    >
       <canvas
         ref={canvasRef}
         className="absolute inset-0 w-full h-full touch-none"
@@ -494,13 +502,13 @@ function SignatureScene({ scene, onFinish }: { scene: Scene; onFinish: () => voi
         onMouseDown={startDraw} onMouseMove={draw} onMouseUp={endDraw} onMouseLeave={endDraw}
         onTouchStart={startDraw} onTouchMove={draw} onTouchEnd={endDraw}
       />
-      <p className="absolute top-10 left-0 right-0 text-center text-white/40 text-sm pointer-events-none tracking-wide">
+      <p className="absolute top-10 left-0 right-0 text-center text-black/40 text-sm pointer-events-none tracking-wide">
         {config.instruction || '在畫面上簽署您的名字'}
       </p>
       <div className="absolute bottom-10 left-0 right-0 flex justify-center gap-4">
-        <button onClick={clearCanvas} className="text-sm text-zinc-400 hover:text-white px-5 py-2.5 border border-zinc-700 hover:border-zinc-400 rounded-lg transition-colors">重寫</button>
+        <button onClick={clearCanvas} className="text-sm text-stone-500 hover:text-stone-900 px-5 py-2.5 border border-stone-300 hover:border-stone-600 rounded-lg bg-white/70 backdrop-blur-sm transition-colors">重寫</button>
         <button onClick={handleSubmit} disabled={!signed || uploading}
-          className="text-sm bg-white text-black px-8 py-2.5 rounded-lg disabled:opacity-30 hover:bg-zinc-100 transition-colors font-medium">
+          className="text-sm bg-stone-900 text-white px-8 py-2.5 rounded-lg disabled:opacity-30 hover:bg-black transition-colors font-medium">
           {uploading ? '提交中…' : '確認簽名'}
         </button>
       </div>

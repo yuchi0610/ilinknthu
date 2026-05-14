@@ -351,10 +351,17 @@ function PreviewContent({ scene, interactive }: { scene: Scene; interactive?: bo
     case 'signature': {
       const c = config as unknown as SignatureConfig
       return (
-        <div className="w-full h-full bg-black flex flex-col items-center justify-center p-3 gap-2">
-          {c.document_url && <img src={c.document_url} className="w-full rounded" alt="" />}
-          <p className="text-[8px] text-white/50 text-center">{c.instruction || '請在此簽署您的名字'}</p>
-          <div className="border border-white/20 rounded bg-white w-full h-8" />
+        <div className="w-full h-full relative flex flex-col items-center justify-center gap-2"
+          style={c.background_url
+            ? { backgroundImage: `url(${c.background_url})`, backgroundSize: 'cover', backgroundPosition: 'center' }
+            : { backgroundColor: '#f5f0e8' }
+          }
+        >
+          <p className="text-[8px] text-black/40 text-center absolute top-3 left-0 right-0">{c.instruction || '在畫面上簽署您的名字'}</p>
+          <div className="absolute bottom-4 left-0 right-0 flex justify-center gap-1.5">
+            <div className="text-[7px] text-stone-500 px-2 py-1 rounded border border-stone-300 bg-white/70">重寫</div>
+            <div className="text-[7px] text-white px-3 py-1 rounded bg-stone-800">確認</div>
+          </div>
         </div>
       )
     }
