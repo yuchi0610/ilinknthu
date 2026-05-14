@@ -115,7 +115,7 @@ function DialogScene({ scene, onFinish }: { scene: Scene; onFinish: () => void }
       className="min-h-screen text-white flex flex-col cursor-pointer select-none relative overflow-hidden"
       style={{
         ...(config.background_url
-          ? { backgroundImage: `url(${config.background_url})`, backgroundSize: 'cover', backgroundPosition: 'center' }
+          ? { backgroundImage: `url(${config.background_url})`, backgroundSize: 'cover', backgroundPosition: config.background_position ?? 'center' }
           : { background: 'linear-gradient(160deg, #1e1b4b 0%, #312e81 60%, #1e1b4b 100%)' }),
       }}
       onClick={handleTap}
@@ -161,7 +161,7 @@ function DialogScene({ scene, onFinish }: { scene: Scene; onFinish: () => void }
 
           {/* 對話框 */}
           <div className="px-5 pt-4 pb-10 flex flex-col justify-between" style={{ minHeight: `${boxHeight}vh`, backgroundColor: boxBg }}>
-            <p style={{ fontSize: textSize, color: textColor, lineHeight: 1.8 }} className="flex-1">
+            <p style={{ fontSize: textSize, color: textColor, lineHeight: 1.8, whiteSpace: 'pre-wrap' }} className="flex-1">
               {displayed}
               <span className={`inline-block w-0.5 h-4 bg-current ml-0.5 align-middle animate-pulse ${done ? 'opacity-0' : ''}`} />
             </p>
@@ -191,7 +191,7 @@ function DialogScene({ scene, onFinish }: { scene: Scene; onFinish: () => void }
             {current?.speaker && (
               <p style={{ fontSize: nameSize, color: nameColor, marginBottom: 8 }} className="font-semibold tracking-wider">{current.speaker}</p>
             )}
-            <p style={{ fontSize: textSize, color: textColor, lineHeight: 1.8 }} className="min-h-[3rem]">
+            <p style={{ fontSize: textSize, color: textColor, lineHeight: 1.8, whiteSpace: 'pre-wrap' }} className="min-h-[3rem]">
               {displayed}
               <span className={`inline-block w-0.5 h-4 bg-current ml-0.5 align-middle animate-pulse ${done ? 'opacity-0' : ''}`} />
             </p>
@@ -247,14 +247,14 @@ function TextScene({ scene, onFinish }: { scene: Scene; onFinish: () => void }) 
     <div
       className="min-h-screen flex items-center justify-center cursor-pointer select-none relative overflow-hidden"
       style={config.background_url
-        ? { backgroundImage: `url(${config.background_url})`, backgroundSize: 'cover', backgroundPosition: 'center' }
+        ? { backgroundImage: `url(${config.background_url})`, backgroundSize: 'cover', backgroundPosition: config.background_position ?? 'center' }
         : { background: '#1c1917' }
       }
       onClick={handleTap}
     >
       {config.background_url && <div className="absolute inset-0 bg-black" style={{ opacity }} />}
       <div className="relative z-10 max-w-xs px-8 text-center">
-        <p className="leading-loose tracking-wide" style={{ fontSize: config.font_size ?? 16, color: config.text_color ?? '#ffffff' }}>
+        <p className="leading-loose tracking-wide" style={{ fontSize: config.font_size ?? 16, color: config.text_color ?? '#ffffff', whiteSpace: 'pre-wrap' }}>
           {displayed}
           <span className={`inline-block w-0.5 h-5 ml-0.5 align-middle animate-pulse ${done ? 'opacity-0' : ''}`} style={{ backgroundColor: config.text_color ?? '#ffffff', opacity: 0.6 }} />
         </p>

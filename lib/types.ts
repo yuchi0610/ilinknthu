@@ -36,6 +36,7 @@ export interface DialogLine {
 
 export interface DialogConfig {
   background_url?: string
+  background_position?: string // CSS background-position, default 'center'
   dialogs: DialogLine[]
   box_theme?: 'dark' | 'light'
   box_height?: number      // vh units, default 38
@@ -50,6 +51,7 @@ export interface DialogConfig {
 export interface TextConfig {
   text: string
   background_url?: string
+  background_position?: string // CSS background-position, default 'center'
   overlay_opacity?: number
   font_size?: number        // px, default 16
   text_color?: string       // default #ffffff

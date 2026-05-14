@@ -91,7 +91,7 @@ function MiniDialogPreview({ config }: { config: DialogConfig }) {
   const nameBadgeBg = boxTheme === 'dark' ? 'rgba(30,27,75,0.9)' : 'rgba(255,255,255,0.92)'
 
   const bgStyle = config.background_url
-    ? { backgroundImage: `url(${config.background_url})`, backgroundSize: 'cover', backgroundPosition: 'center' }
+    ? { backgroundImage: `url(${config.background_url})`, backgroundSize: 'cover', backgroundPosition: config.background_position ?? 'center' }
     : { background: 'linear-gradient(160deg,#1e1b4b 0%,#312e81 60%,#1e1b4b 100%)' }
 
   return (
@@ -134,7 +134,7 @@ function MiniDialogPreview({ config }: { config: DialogConfig }) {
             className="absolute left-0 right-0 bottom-0 flex flex-col px-2 pt-1.5 pb-2 overflow-hidden"
             style={{ height: boxPx, backgroundColor: boxBg }}
           >
-            <p style={{ fontSize: textSize, color: textColor, lineHeight: 1.55 }} className="flex-1 overflow-hidden">
+            <p style={{ fontSize: textSize, color: textColor, lineHeight: 1.55, whiteSpace: 'pre-wrap' }} className="flex-1 overflow-hidden">
               {displayed || <span style={{ opacity: 0.3 }}>尚未輸入…</span>}
               <span className={`inline-block w-0.5 h-3 bg-current ml-0.5 align-middle animate-pulse ${done ? 'opacity-0' : ''}`} />
             </p>
@@ -304,7 +304,7 @@ function MiniTextPreview({ config }: { config: TextConfig }) {
 
   const color = config.text_color ?? '#ffffff'
   const bgStyle = config.background_url
-    ? { backgroundImage: `url(${config.background_url})`, backgroundSize: 'cover', backgroundPosition: 'center' }
+    ? { backgroundImage: `url(${config.background_url})`, backgroundSize: 'cover', backgroundPosition: config.background_position ?? 'center' }
     : { background: '#1c1917' }
 
   return (
@@ -329,7 +329,7 @@ function MiniTextPreview({ config }: { config: TextConfig }) {
       }}>
         {config.background_url && <div className="absolute inset-0 bg-black" style={{ opacity }} />}
         <div className="relative z-10 max-w-xs px-8 text-center">
-          <p className="leading-loose tracking-wide" style={{ fontSize: config.font_size ?? 16, color }}>
+          <p className="leading-loose tracking-wide" style={{ fontSize: config.font_size ?? 16, color, whiteSpace: 'pre-wrap' }}>
             {displayed || <span style={{ opacity: 0.3 }}>尚未輸入…</span>}
             {!done && displayed && (
               <span className="inline-block w-0.5 h-5 ml-0.5 align-middle animate-pulse" style={{ backgroundColor: color, opacity: 0.6 }} />
@@ -440,7 +440,7 @@ function PreviewContent({ scene, interactive }: { scene: Scene; interactive?: bo
       return (
         <div className="w-full h-full flex flex-col text-white"
           style={c.background_url
-            ? { backgroundImage: `url(${c.background_url})`, backgroundSize: 'cover', backgroundPosition: 'center' }
+            ? { backgroundImage: `url(${c.background_url})`, backgroundSize: 'cover', backgroundPosition: c.background_position ?? 'center' }
             : { background: 'linear-gradient(160deg,#1c1917,#292524)' }
           }
         >
@@ -488,7 +488,7 @@ function PreviewContent({ scene, interactive }: { scene: Scene; interactive?: bo
       const opacity = (c.overlay_opacity ?? 50) / 100
       const color = c.text_color ?? '#ffffff'
       const bgStyle = c.background_url
-        ? { backgroundImage: `url(${c.background_url})`, backgroundSize: 'cover', backgroundPosition: 'center' }
+        ? { backgroundImage: `url(${c.background_url})`, backgroundSize: 'cover', backgroundPosition: c.background_position ?? 'center' }
         : { background: '#1c1917' }
       return (
         <div style={{ width: SCREEN_W, height: PHONE_SCREEN_H, overflow: 'hidden', position: 'relative' }}>
@@ -507,7 +507,7 @@ function PreviewContent({ scene, interactive }: { scene: Scene; interactive?: bo
           }}>
             {c.background_url && <div className="absolute inset-0 bg-black" style={{ opacity }} />}
             <div className="relative z-10 max-w-xs px-8 text-center">
-              <p className="leading-loose tracking-wide" style={{ fontSize: c.font_size ?? 16, color }}>
+              <p className="leading-loose tracking-wide" style={{ fontSize: c.font_size ?? 16, color, whiteSpace: 'pre-wrap' }}>
                 {c.text || <span style={{ opacity: 0.3 }}>尚未輸入…</span>}
               </p>
             </div>

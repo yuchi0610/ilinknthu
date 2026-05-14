@@ -41,6 +41,29 @@ function Toggle({ label, value, onChange }: { label: string; value: boolean; onC
   )
 }
 
+const BG_POSITIONS = [
+  ['top left', 'top center', 'top right'],
+  ['center left', 'center', 'center right'],
+  ['bottom left', 'bottom center', 'bottom right'],
+]
+
+function BgPositionPicker({ value, onChange }: { value: string; onChange: (v: string) => void }) {
+  const current = value || 'center'
+  return (
+    <div className="flex items-center gap-3">
+      <div className="grid grid-cols-3 gap-1 bg-stone-100 p-1.5 rounded-lg">
+        {BG_POSITIONS.flat().map(pos => (
+          <button key={pos} type="button" onClick={() => onChange(pos)} title={pos}
+            className={`w-7 h-7 rounded flex items-center justify-center transition-colors ${current === pos ? 'bg-stone-800' : 'hover:bg-stone-200'}`}>
+            <span className={`w-1.5 h-1.5 rounded-full ${current === pos ? 'bg-white' : 'bg-stone-400'}`} />
+          </button>
+        ))}
+      </div>
+      <span className="text-xs text-stone-400">{current}</span>
+    </div>
+  )
+}
+
 function MediaButton({ value, onChange, onPickMedia }: {
   value: string; onChange: (v: string) => void; onPickMedia: () => void
 }) {
@@ -114,6 +137,11 @@ function TextForm({ config, onChange, onPickMedia }: FormProps) {
         <MediaButton value={c.background_url ?? ''} onChange={v => onChange({ ...config, background_url: v })} onPickMedia={() => onPickMedia(v => onChange({ ...config, background_url: v }))} />
       </Field>
       {c.background_url && (
+        <Field label="圖片位置">
+          <BgPositionPicker value={c.background_position ?? 'center'} onChange={v => onChange({ ...config, background_position: v })} />
+        </Field>
+      )}
+      {c.background_url && (
         <Field label={`圖片暗化程度：${c.overlay_opacity ?? 50}%`}>
           <input
             type="range" min={0} max={90} step={5}
@@ -165,6 +193,11 @@ function DialogForm({ config, onChange, onPickMedia }: FormProps) {
       <Field label="背景圖片" hint="選填">
         <MediaButton value={c.background_url ?? ''} onChange={v => onChange({ ...config, background_url: v })} onPickMedia={() => onPickMedia(v => onChange({ ...config, background_url: v }))} />
       </Field>
+      {c.background_url && (
+        <Field label="圖片位置">
+          <BgPositionPicker value={c.background_position ?? 'center'} onChange={v => onChange({ ...config, background_position: v })} />
+        </Field>
+      )}
 
       {/* 對話框樣式 */}
       <div className="border border-stone-100 rounded-xl p-4 bg-stone-50 space-y-3">
