@@ -2,6 +2,7 @@
 
 import { useState, useRef, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
+import dynamic from 'next/dynamic'
 import type { Scene, Ending, DialogConfig, AnimationConfig, NewspaperConfig, TextConfig, SignatureConfig, GameConfig } from '@/lib/types'
 
 function bgCss(url: string, x = 50, y = 50, zoom = 100): React.CSSProperties {
@@ -12,6 +13,7 @@ function bgCss(url: string, x = 50, y = 50, zoom = 100): React.CSSProperties {
   }
 }
 import OysterGame from '@/components/games/OysterGame'
+const NewspaperFlip = dynamic(() => import('./NewspaperFlip'), { ssr: false })
 
 interface Props {
   scene: Scene
@@ -316,59 +318,10 @@ function AnimationScene({ scene, onFinish }: { scene: Scene; onFinish: () => voi
   )
 }
 
-// ── 報紙：書頁翻頁 CSS ────────────────────────────────────────────
-const NW_CSS = `
-  @keyframes nwFlipFwd {
-    0%   { transform: rotateY(0deg);    opacity: 1; }
-    86%  { transform: rotateY(-170deg); opacity: 1; }
-    100% { transform: rotateY(-180deg); opacity: 0; }
-  }
-  @keyframes nwFlipBack {
-    0%   { transform: rotateY(0deg);   opacity: 1; }
-    86%  { transform: rotateY(170deg); opacity: 1; }
-    100% { transform: rotateY(180deg); opacity: 0; }
-  }
-`
-
 // ── 報紙場景 ─────────────────────────────────────────────────────
-function NewspaperPageView({ page }: { page: NewspaperConfig['pages'][number] | undefined }) {
-  if (!page?.image_url) {
-    return <div className="w-full h-full bg-stone-200 flex items-center justify-center"><p className="text-stone-400 text-sm">未設定圖片</p></div>
-  }
-  return (
-    <div className="w-full h-full" style={bgCss(page.image_url, page.image_x, page.image_y, page.image_zoom)} />
-  )
-}
-
 function NewspaperScene({ scene, onFinish }: { scene: Scene; onFinish: () => void }) {
   const config = scene.config as NewspaperConfig
   const pages = config.pages ?? []
-  const [index, setIndex] = useState(0)
-  const [flipAnim, setFlipAnim] = useState<{ fromIdx: number; dir: 'fwd' | 'back' } | null>(null)
-  const touchStartX = useRef(0)
-  const touchStartY = useRef(0)
-
-  function advance(dir: 'fwd' | 'back') {
-    if (flipAnim) return
-    const next = index + (dir === 'fwd' ? 1 : -1)
-    if (next < 0) return
-    if (next >= pages.length) { onFinish(); return }
-    setFlipAnim({ fromIdx: index, dir })
-    setIndex(next)
-    setTimeout(() => setFlipAnim(null), 950)
-  }
-
-  function handleTouchStart(e: React.TouchEvent) {
-    touchStartX.current = e.touches[0].clientX
-    touchStartY.current = e.touches[0].clientY
-  }
-
-  function handleTouchEnd(e: React.TouchEvent) {
-    const dx = e.changedTouches[0].clientX - touchStartX.current
-    const dy = Math.abs(e.changedTouches[0].clientY - touchStartY.current)
-    if (Math.abs(dx) < 40 || dy > Math.abs(dx)) return
-    advance(dx < 0 ? 'fwd' : 'back')
-  }
 
   if (!pages.length) {
     return (
@@ -379,61 +332,7 @@ function NewspaperScene({ scene, onFinish }: { scene: Scene; onFinish: () => voi
     )
   }
 
-  const page = pages[index]
-  const fromPage = flipAnim ? pages[flipAnim.fromIdx] : null
-
-  return (
-    <div
-      className="min-h-screen flex flex-col bg-zinc-100 select-none"
-      onTouchStart={handleTouchStart}
-      onTouchEnd={handleTouchEnd}
-    >
-      <style>{NW_CSS}</style>
-
-      <div className="flex-1 relative overflow-hidden" style={{ perspective: '2000px' }}>
-        <div className="absolute inset-0">
-          <NewspaperPageView page={page} />
-        </div>
-
-        {flipAnim && fromPage && (
-          <div
-            className="absolute inset-0"
-            style={{
-              transformStyle: 'preserve-3d',
-              transformOrigin: flipAnim.dir === 'fwd' ? 'left center' : 'right center',
-              animation: `${flipAnim.dir === 'fwd' ? 'nwFlipFwd' : 'nwFlipBack'} 0.9s ease-in-out forwards`,
-            }}
-          >
-            <div className="absolute inset-0" style={{ backfaceVisibility: 'hidden' }}>
-              <NewspaperPageView page={fromPage} />
-              <div
-                className="absolute inset-y-0 w-1/4 pointer-events-none"
-                style={{
-                  [flipAnim.dir === 'fwd' ? 'right' : 'left']: 0,
-                  background: flipAnim.dir === 'fwd'
-                    ? 'linear-gradient(to left, rgba(0,0,0,0.22) 0%, transparent 100%)'
-                    : 'linear-gradient(to right, rgba(0,0,0,0.22) 0%, transparent 100%)',
-                }}
-              />
-            </div>
-            <div className="absolute inset-0" style={{ transform: 'rotateY(180deg)', backfaceVisibility: 'hidden', backgroundColor: '#f4f2ed' }} />
-          </div>
-        )}
-
-        {pages.length > 1 && (
-          <div className="absolute bottom-5 left-0 right-0 flex justify-center gap-1.5 pointer-events-none">
-            {pages.map((_, i) => (
-              <span key={i} className={`w-1.5 h-1.5 rounded-full transition-colors ${i === index ? 'bg-white shadow' : 'bg-white/40'}`} />
-            ))}
-          </div>
-        )}
-
-        {index === pages.length - 1 && pages.length > 0 && (
-          <div className="absolute bottom-12 right-5 text-xs text-white/50 pointer-events-none tracking-wide">左滑結束</div>
-        )}
-      </div>
-    </div>
-  )
+  return <NewspaperFlip pages={pages} onFinish={onFinish} />
 }
 
 // ── 簽名場景 ─────────────────────────────────────────────────────
