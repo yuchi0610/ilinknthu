@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState } from 'react'
 import SceneRenderer from './SceneRenderer'
 import type { Scene, Ending } from '@/lib/types'
 
@@ -9,37 +9,30 @@ interface Props {
   endings: Ending[]
 }
 
+// Mobile: fixed inset-0 so layout doesn't reflow when viewport resizes (fullscreen entry)
+// Desktop (sm+): centered 390px column
+const SHELL = 'fixed inset-0 overflow-hidden sm:relative sm:inset-auto sm:overflow-visible sm:max-w-[390px] sm:mx-auto sm:min-h-dvh'
+
 export default function ExperienceShell({ scenes, endings }: Props) {
   const [sceneIndex, setSceneIndex] = useState(0)
-  const [visible, setVisible] = useState(true)
 
   const currentScene = scenes[sceneIndex]
   const nextScene = scenes[sceneIndex + 1] ?? null
 
   function handleFinish() {
-    setVisible(false)
-    setTimeout(() => {
-      setSceneIndex(i => i + 1)
-      setVisible(true)
-    }, 200)
+    setSceneIndex(i => i + 1)
   }
 
   if (!currentScene) {
     return (
-      <div className="mx-auto max-w-[390px] min-h-dvh bg-black text-white flex items-center justify-center">
+      <div className={`${SHELL} bg-black text-white flex items-center justify-center`}>
         <p className="text-stone-500 text-sm">體驗已結束</p>
       </div>
     )
   }
 
   return (
-    <div
-      className="mx-auto max-w-[390px]"
-      style={{
-        opacity: visible ? 1 : 0,
-        transition: 'opacity 0.2s ease',
-      }}
-    >
+    <div className={SHELL}>
       <SceneRenderer
         key={currentScene.id}
         scene={currentScene}
