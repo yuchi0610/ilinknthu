@@ -177,17 +177,26 @@ function MiniDialogPreview({ config }: { config: DialogConfig }) {
 }
 
 // ── 互動報紙預覽（滑動翻頁） ──────────────────────────────────────
-// Flatten NewspaperItem[] into a simple image list for mini preview
-function flatForPreview(items: NewspaperItem[]): Array<{ url: string; isAuto: boolean; interval: number }> {
-  const result: Array<{ url: string; isAuto: boolean; interval: number }> = []
+type FlatPreviewPage = { url: string; isAuto: boolean; interval: number; x: number; y: number; zoom: number }
+
+function flatForPreview(items: NewspaperItem[]): FlatPreviewPage[] {
+  const result: FlatPreviewPage[] = []
   for (const item of items) {
     if (item.kind === 'auto') {
-      for (const url of item.images) result.push({ url, isAuto: true, interval: item.interval ?? 1800 })
+      for (const url of item.images) result.push({ url, isAuto: true, interval: item.interval ?? 1800, x: 50, y: 50, zoom: 100 })
     } else {
-      result.push({ url: item.image_url, isAuto: false, interval: 0 })
+      result.push({ url: item.image_url, isAuto: false, interval: 0, x: item.image_x ?? 50, y: item.image_y ?? 50, zoom: item.image_zoom ?? 100 })
     }
   }
   return result
+}
+
+function pageBg(p: FlatPreviewPage): React.CSSProperties {
+  return {
+    backgroundImage: `url(${p.url})`,
+    backgroundSize: p.zoom === 100 ? 'cover' : `${p.zoom}%`,
+    backgroundPosition: `${p.x}% ${p.y}%`,
+  }
 }
 
 function MiniNewspaperPreview({ config }: { config: NewspaperConfig }) {
@@ -259,7 +268,7 @@ function MiniNewspaperPreview({ config }: { config: NewspaperConfig }) {
 
       <div className="absolute inset-0">
         {page?.url
-          ? <div className="w-full h-full" style={{ backgroundImage: `url(${page.url})`, backgroundSize: 'cover', backgroundPosition: 'center' }} />
+          ? <div className="w-full h-full" style={pageBg(page)} />
           : <div className="w-full h-full flex items-center justify-center"><p className="text-[8px] text-stone-400">未設定圖片</p></div>
         }
       </div>
@@ -275,7 +284,7 @@ function MiniNewspaperPreview({ config }: { config: NewspaperConfig }) {
         >
           <div className="absolute inset-0" style={{ backfaceVisibility: 'hidden' }}>
             {fromPage.url
-              ? <div className="w-full h-full" style={{ backgroundImage: `url(${fromPage.url})`, backgroundSize: 'cover', backgroundPosition: 'center' }} />
+              ? <div className="w-full h-full" style={pageBg(fromPage)} />
               : <div className="w-full h-full bg-stone-200" />
             }
             <div className="absolute inset-y-0 w-1/4 pointer-events-none" style={{ [flipAnim.dir === 'fwd' ? 'right' : 'left']: 0, background: flipAnim.dir === 'fwd' ? 'linear-gradient(to left, rgba(0,0,0,0.18) 0%, transparent 100%)' : 'linear-gradient(to right, rgba(0,0,0,0.18) 0%, transparent 100%)' }} />
