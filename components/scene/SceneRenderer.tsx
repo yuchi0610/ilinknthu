@@ -355,7 +355,7 @@ function NewspaperScene({ scene, onFinish }: { scene: Scene; onFinish: () => voi
     if (next >= pages.length) { onFinish(); return }
     setFlipAnim({ fromIdx: index, dir })
     setIndex(next)
-    setTimeout(() => setFlipAnim(null), 520)
+    setTimeout(() => setFlipAnim(null), 950)
   }
 
   function handleTouchStart(e: React.TouchEvent) {
@@ -401,7 +401,7 @@ function NewspaperScene({ scene, onFinish }: { scene: Scene; onFinish: () => voi
             style={{
               transformStyle: 'preserve-3d',
               transformOrigin: flipAnim.dir === 'fwd' ? 'left center' : 'right center',
-              animation: `${flipAnim.dir === 'fwd' ? 'nwFlipFwd' : 'nwFlipBack'} 0.5s ease-in-out forwards`,
+              animation: `${flipAnim.dir === 'fwd' ? 'nwFlipFwd' : 'nwFlipBack'} 0.9s ease-in-out forwards`,
             }}
           >
             <div className="absolute inset-0" style={{ backfaceVisibility: 'hidden' }}>

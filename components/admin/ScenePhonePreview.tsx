@@ -193,7 +193,7 @@ function MiniNewspaperPreview({ config }: { config: NewspaperConfig }) {
     if (next < 0 || next >= pages.length) return
     setFlipAnim({ fromIdx: index, dir })
     setIndex(next)
-    setTimeout(() => setFlipAnim(null), 420)
+    setTimeout(() => setFlipAnim(null), 780)
   }
 
   function onDragStart(x: number) { dragStartX.current = x }
@@ -239,7 +239,7 @@ function MiniNewspaperPreview({ config }: { config: NewspaperConfig }) {
           style={{
             transformStyle: 'preserve-3d',
             transformOrigin: flipAnim.dir === 'fwd' ? 'left center' : 'right center',
-            animation: `${flipAnim.dir === 'fwd' ? 'miniFlipFwd' : 'miniFlipBack'} 0.42s ease-in-out forwards`,
+            animation: `${flipAnim.dir === 'fwd' ? 'miniFlipFwd' : 'miniFlipBack'} 0.75s ease-in-out forwards`,
           }}
         >
           <div className="absolute inset-0" style={{ backfaceVisibility: 'hidden' }}>
