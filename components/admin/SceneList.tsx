@@ -11,7 +11,6 @@ import {
   useSortable,
 } from '@dnd-kit/sortable'
 import { CSS } from '@dnd-kit/utilities'
-import { createClient } from '@/lib/supabase/client'
 import ScenePhonePreview from './ScenePhonePreview'
 import type { Scene, SceneType } from '@/lib/types'
 
@@ -118,7 +117,6 @@ export default function SceneList({ initialScenes }: { initialScenes: Scene[] })
   const [addError, setAddError] = useState('')
 
   const sensors = useSensors(useSensor(PointerSensor))
-  const supabase = createClient()
   const router = useRouter()
 
   const selectedScene = scenes.find(s => s.id === selectedId) ?? null
@@ -131,13 +129,21 @@ export default function SceneList({ initialScenes }: { initialScenes: Scene[] })
     const reordered = arrayMove(scenes, oldIndex, newIndex).map((s, i) => ({ ...s, order: i + 1 }))
     setScenes(reordered)
     setSaving(true)
-    await Promise.all(reordered.map(s => supabase.from('scenes').update({ order: s.order }).eq('id', s.id)))
+    await fetch('/api/scenes', {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ batch: reordered.map(s => ({ id: s.id, order: s.order })) }),
+    })
     setSaving(false)
   }
 
   async function handleDelete(id: string) {
     if (!confirm('確定要刪除這個場景嗎？')) return
-    await supabase.from('scenes').delete().eq('id', id)
+    await fetch('/api/scenes', {
+      method: 'DELETE',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ id }),
+    })
     const next = scenes.filter(s => s.id !== id)
     setScenes(next)
     if (selectedId === id) setSelectedId(next[0]?.id ?? null)
@@ -146,27 +152,27 @@ export default function SceneList({ initialScenes }: { initialScenes: Scene[] })
   async function handleAdd() {
     setAddError('')
     const order = scenes.length + 1
-    const { data, error } = await supabase
-      .from('scenes')
-      .insert({ type: newType, title: TYPE_LABEL[newType], order, config: {}, visible: true })
-      .select()
-      .single()
-    if (error) { setAddError(`建立失敗：${error.message}`); return }
-    if (data) router.push(`/admin/scenes/${data.id}`)
+    const res = await fetch('/api/scenes', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ type: newType, title: TYPE_LABEL[newType], order, config: {}, visible: true }),
+    })
+    const json = await res.json()
+    if (!res.ok) { setAddError(`建立失敗：${json.error}`); return }
+    router.push(`/admin/scenes/${json.scene.id}`)
   }
 
   async function handleDuplicate(scene: Scene) {
     const order = scenes.length + 1
-    const { data, error } = await supabase
-      .from('scenes')
-      .insert({ type: scene.type, title: scene.title, order, config: scene.config, visible: scene.visible })
-      .select()
-      .single()
-    if (error) { alert(`複製失敗：${error.message}`); return }
-    if (data) {
-      setScenes(prev => [...prev, { ...data } as Scene])
-      setSelectedId(data.id)
-    }
+    const res = await fetch('/api/scenes', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ type: scene.type, title: scene.title, order, config: scene.config, visible: scene.visible }),
+    })
+    const json = await res.json()
+    if (!res.ok) { alert(`複製失敗：${json.error}`); return }
+    setScenes(prev => [...prev, json.scene as Scene])
+    setSelectedId(json.scene.id)
   }
 
   return (

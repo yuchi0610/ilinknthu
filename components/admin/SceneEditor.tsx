@@ -2,7 +2,6 @@
 
 import { useState } from 'react'
 import { useRouter } from 'next/navigation'
-import { createClient } from '@/lib/supabase/client'
 import MediaPickerModal from './MediaPickerModal'
 import ScenePhonePreview from './ScenePhonePreview'
 import type { Scene, SceneType, DialogConfig, AnimationConfig, NewspaperConfig, TextConfig, SignatureConfig, GameConfig } from '@/lib/types'
@@ -505,8 +504,11 @@ export default function SceneEditor({ scene }: { scene: Scene }) {
 
   async function handleSave() {
     setSaving(true)
-    const supabase = createClient()
-    await supabase.from('scenes').update({ title, visible, config, updated_at: new Date().toISOString() }).eq('id', scene.id)
+    await fetch('/api/scenes', {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ id: scene.id, title, visible, config, updated_at: new Date().toISOString() }),
+    })
     setSaving(false)
     setSaved(true)
     setTimeout(() => setSaved(false), 2000)
