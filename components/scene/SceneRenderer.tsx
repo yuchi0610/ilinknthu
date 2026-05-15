@@ -335,7 +335,9 @@ function NewspaperPageView({ page }: { page: NewspaperConfig['pages'][number] | 
   if (!page?.image_url) {
     return <div className="w-full h-full bg-stone-200 flex items-center justify-center"><p className="text-stone-400 text-sm">未設定圖片</p></div>
   }
-  return <img src={page.image_url} alt="" className="w-full h-full object-cover" />
+  return (
+    <div className="w-full h-full" style={bgCss(page.image_url, page.image_x, page.image_y, page.image_zoom)} />
+  )
 }
 
 function NewspaperScene({ scene, onFinish }: { scene: Scene; onFinish: () => void }) {
@@ -505,7 +507,7 @@ function SignatureScene({ scene, onFinish }: { scene: Scene; onFinish: () => voi
     <div
       className="min-h-screen relative overflow-hidden select-none"
       style={hasBg
-        ? { backgroundImage: `url(${config.background_url})`, backgroundSize: 'cover', backgroundPosition: 'center' }
+        ? bgCss(config.background_url!, config.background_x, config.background_y, config.background_zoom)
         : { backgroundColor: '#f5f0e8' }
       }
     >

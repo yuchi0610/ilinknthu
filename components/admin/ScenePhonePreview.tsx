@@ -227,7 +227,7 @@ function MiniNewspaperPreview({ config }: { config: NewspaperConfig }) {
       {/* Background: current page */}
       <div className="absolute inset-0">
         {page?.image_url
-          ? <img src={page.image_url} className="w-full h-full object-cover" alt="" />
+          ? <div className="w-full h-full" style={bgCss(page.image_url, page.image_x, page.image_y, page.image_zoom)} />
           : <div className="w-full h-full flex items-center justify-center"><p className="text-[8px] text-stone-400">未設定圖片</p></div>
         }
       </div>
@@ -244,7 +244,7 @@ function MiniNewspaperPreview({ config }: { config: NewspaperConfig }) {
         >
           <div className="absolute inset-0" style={{ backfaceVisibility: 'hidden' }}>
             {fromPage.image_url
-              ? <img src={fromPage.image_url} className="w-full h-full object-cover" alt="" />
+              ? <div className="w-full h-full" style={bgCss(fromPage.image_url, fromPage.image_x, fromPage.image_y, fromPage.image_zoom)} />
               : <div className="w-full h-full bg-stone-200" />
             }
             <div
@@ -365,7 +365,7 @@ function MiniSignaturePreview({ config }: { config: SignatureConfig }) {
   }, [])
 
   const bgStyle: React.CSSProperties = config.background_url
-    ? { backgroundImage: `url(${config.background_url})`, backgroundSize: 'cover', backgroundPosition: 'center' }
+    ? bgCss(config.background_url, config.background_x, config.background_y, config.background_zoom)
     : { backgroundColor: '#f5f0e8' }
 
   function getPos(e: React.MouseEvent | React.TouchEvent) {
@@ -542,7 +542,7 @@ function PreviewContent({ scene, interactive }: { scene: Scene; interactive?: bo
       return (
         <div className="w-full h-full relative flex flex-col items-center justify-center gap-2"
           style={c.background_url
-            ? { backgroundImage: `url(${c.background_url})`, backgroundSize: 'cover', backgroundPosition: 'center' }
+            ? bgCss(c.background_url, c.background_x, c.background_y, c.background_zoom)
             : { backgroundColor: '#f5f0e8' }
           }
         >

@@ -41,28 +41,32 @@ function Toggle({ label, value, onChange }: { label: string; value: boolean; onC
   )
 }
 
-function ImageAdjust({ config, onChange }: { config: Record<string, unknown>; onChange: (c: Record<string, unknown>) => void }) {
-  const x    = (config.background_x    as number) ?? 50
-  const y    = (config.background_y    as number) ?? 50
-  const zoom = (config.background_zoom as number) ?? 100
+function ImageAdjust({ config, onChange, prefix = 'background' }: {
+  config: Record<string, unknown>
+  onChange: (c: Record<string, unknown>) => void
+  prefix?: 'background' | 'image'
+}) {
+  const x    = (config[`${prefix}_x`]    as number) ?? 50
+  const y    = (config[`${prefix}_y`]    as number) ?? 50
+  const zoom = (config[`${prefix}_zoom`] as number) ?? 100
   return (
     <div className="border border-stone-100 rounded-xl p-3 bg-stone-50 space-y-2">
       <p className="text-xs font-semibold text-stone-500 uppercase tracking-widest">圖片調整</p>
       <Field label={`水平位置：${x}%`}>
         <input type="range" min={0} max={100} step={1} value={x}
-          onChange={e => onChange({ ...config, background_x: Number(e.target.value) })}
+          onChange={e => onChange({ ...config, [`${prefix}_x`]: Number(e.target.value) })}
           className="w-full accent-stone-700" />
         <div className="flex justify-between text-xs text-stone-400 mt-0.5"><span>靠左</span><span>靠右</span></div>
       </Field>
       <Field label={`垂直位置：${y}%`}>
         <input type="range" min={0} max={100} step={1} value={y}
-          onChange={e => onChange({ ...config, background_y: Number(e.target.value) })}
+          onChange={e => onChange({ ...config, [`${prefix}_y`]: Number(e.target.value) })}
           className="w-full accent-stone-700" />
         <div className="flex justify-between text-xs text-stone-400 mt-0.5"><span>靠上</span><span>靠下</span></div>
       </Field>
       <Field label={`縮放：${zoom}%`}>
         <input type="range" min={80} max={200} step={5} value={zoom}
-          onChange={e => onChange({ ...config, background_zoom: Number(e.target.value) })}
+          onChange={e => onChange({ ...config, [`${prefix}_zoom`]: Number(e.target.value) })}
           className="w-full accent-stone-700" />
         <div className="flex justify-between text-xs text-stone-400 mt-0.5"><span>縮小</span><span>放大</span></div>
       </Field>
@@ -349,9 +353,8 @@ function AnimationForm({ config, onChange, onPickMedia }: FormProps) {
 function NewspaperForm({ config, onChange, onPickMedia }: FormProps) {
   const pages = (config.pages as Array<Record<string, unknown>>) ?? []
 
-  function updatePage(i: number, key: string, val: unknown) {
-    const next = pages.map((p, idx) => idx === i ? { ...p, [key]: val } : p)
-    onChange({ ...config, pages: next })
+  function replacePage(i: number, page: Record<string, unknown>) {
+    onChange({ ...config, pages: pages.map((p, idx) => idx === i ? page : p) })
   }
 
   return (
@@ -364,8 +367,11 @@ function NewspaperForm({ config, onChange, onPickMedia }: FormProps) {
             <button onClick={() => onChange({ ...config, pages: pages.filter((_, idx) => idx !== i) })} className="text-xs text-stone-300 hover:text-red-400">刪除</button>
           </div>
           <Field label="圖片">
-            <MediaButton value={(page.image_url as string) ?? ''} onChange={v => updatePage(i, 'image_url', v)} onPickMedia={() => onPickMedia(v => updatePage(i, 'image_url', v))} />
+            <MediaButton value={(page.image_url as string) ?? ''} onChange={v => replacePage(i, { ...page, image_url: v })} onPickMedia={() => onPickMedia(v => replacePage(i, { ...page, image_url: v }))} />
           </Field>
+          {!!(page.image_url as string) && (
+            <ImageAdjust config={page} onChange={p => replacePage(i, p)} prefix="image" />
+          )}
         </div>
       ))}
       <button
@@ -384,6 +390,9 @@ function SignatureForm({ config, onChange, onPickMedia }: FormProps) {
       <Field label="背景圖片" hint="選填">
         <MediaButton value={(config.background_url as string) ?? ''} onChange={v => onChange({ ...config, background_url: v })} onPickMedia={() => onPickMedia(v => onChange({ ...config, background_url: v }))} />
       </Field>
+      {!!(config.background_url as string) && (
+        <ImageAdjust config={config} onChange={onChange} />
+      )}
       <Field label="說明文字">
         <input value={(config.instruction as string) ?? ''} onChange={e => onChange({ ...config, instruction: e.target.value })} className={inputCls} placeholder="請在畫面上簽署您的名字" />
       </Field>

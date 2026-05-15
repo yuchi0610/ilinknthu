@@ -20,6 +20,9 @@ export interface AnimationConfig {
 
 export interface NewspaperPage {
   image_url: string
+  image_x?: number    // 0–100, default 50
+  image_y?: number    // 0–100, default 50
+  image_zoom?: number // 80–200, default 100 (= cover)
 }
 
 export interface NewspaperConfig {
@@ -68,6 +71,9 @@ export interface SignatureConfig {
   document_url: string
   instruction: string
   background_url?: string
+  background_x?: number    // 0–100, default 50
+  background_y?: number    // 0–100, default 50
+  background_zoom?: number // 80–200, default 100
   signature_area: { x: number; y: number; width: number; height: number }
 }
 
