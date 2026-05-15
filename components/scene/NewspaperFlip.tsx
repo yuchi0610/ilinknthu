@@ -67,12 +67,26 @@ export default function NewspaperFlip({ items, onFinish }: Props) {
   const [currentIdx, setCurrentIdx] = useState(0)
   const [ready, setReady] = useState(false)
   const [flashing, setFlashing] = useState(false)
+  const [imagesLoaded, setImagesLoaded] = useState(false)
   const touchStartX = useRef(0)
   const touchStartY = useRef(0)
+  const isFlippingRef = useRef(false)
   const autoTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
   const autoDelayRef = useRef(300)
   const onFinishRef = useRef(onFinish)
   useEffect(() => { onFinishRef.current = onFinish }, [onFinish])
+
+  // Preload all images before showing the flipbook to prevent black-screen during flip
+  useEffect(() => {
+    const urls = flatPages.map(p => p.image_url).filter(Boolean)
+    if (!urls.length) { setImagesLoaded(true); return }
+    let done = 0
+    urls.forEach(url => {
+      const img = new window.Image()
+      img.onload = img.onerror = () => { done++; if (done === urls.length) setImagesLoaded(true) }
+      img.src = url
+    })
+  }, [flatPages])
 
   const currentAutoRange = autoRanges.find(r => currentIdx >= r.start && currentIdx <= r.end) ?? null
   const isAuto = !!currentAutoRange
@@ -141,12 +155,13 @@ export default function NewspaperFlip({ items, onFinish }: Props) {
   }
 
   function handleTouchEnd(e: React.TouchEvent) {
-    if (isAuto) return
+    if (isAuto || isFlippingRef.current) return
     const dx = e.changedTouches[0].clientX - touchStartX.current
     const dy = Math.abs(e.changedTouches[0].clientY - touchStartY.current)
     if (Math.abs(dx) < 70 || dy > Math.abs(dx) * 0.6) return
     const pf = bookRef.current?.pageFlip()
     if (!pf) return
+    isFlippingRef.current = true
     if (dx < 0) pf.flipNext('bottom')
     else pf.flipPrev('bottom')
   }
@@ -155,6 +170,14 @@ export default function NewspaperFlip({ items, onFinish }: Props) {
     return (
       <div className="min-h-dvh bg-black text-white flex flex-col items-center justify-center gap-6">
         <p className="text-zinc-500 text-sm">尚未設定頁面</p>
+      </div>
+    )
+  }
+
+  if (!imagesLoaded) {
+    return (
+      <div className="min-h-dvh bg-zinc-900 flex items-center justify-center">
+        <div className="w-8 h-8 border-2 border-white/20 border-t-white/70 rounded-full animate-spin" />
       </div>
     )
   }
@@ -190,7 +213,7 @@ export default function NewspaperFlip({ items, onFinish }: Props) {
         swipeDistance={999}
         showPageCorners={!isAuto}
         disableFlipByClick={true}
-        onFlip={(e: { data: number }) => setCurrentIdx(e.data)}
+        onFlip={(e: { data: number }) => { isFlippingRef.current = false; setCurrentIdx(e.data) }}
         onInit={() => setReady(true)}
         renderOnlyPageLengthChange={false}
       >
