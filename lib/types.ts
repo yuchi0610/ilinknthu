@@ -16,6 +16,7 @@ export interface AnimationConfig {
   autoplay: boolean
   loop: boolean
   auto_advance: boolean
+  video_fit?: 'contain' | 'cover'
 }
 
 export interface NewspaperPage {
@@ -29,7 +30,6 @@ export interface NewspaperConfig {
   pages: NewspaperPage[]
   auto_flip?: boolean          // auto-advance through pages
   auto_flip_interval?: number  // ms between flips, default 1800
-  auto_flip_pages?: number[]   // page indices to include; empty/undefined = all
 }
 
 export interface DialogLine {

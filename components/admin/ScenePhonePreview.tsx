@@ -178,13 +178,9 @@ function MiniDialogPreview({ config }: { config: DialogConfig }) {
 
 // ── 互動報紙預覽（滑動翻頁） ──────────────────────────────────────
 function MiniNewspaperPreview({ config }: { config: NewspaperConfig }) {
-  const allPages = config.pages ?? []
+  const pages = config.pages ?? []
   const autoFlip = !!config.auto_flip
   const interval = config.auto_flip_interval ?? 1800
-  const selectedIndices = config.auto_flip_pages
-  const pages = (autoFlip && selectedIndices?.length)
-    ? allPages.filter((_, i) => selectedIndices.includes(i))
-    : allPages
 
   const [index, setIndex] = useState(0)
   const [flipAnim, setFlipAnim] = useState<{ fromIdx: number; dir: 'fwd' | 'back' } | null>(null)
@@ -205,7 +201,7 @@ function MiniNewspaperPreview({ config }: { config: NewspaperConfig }) {
     return () => clearInterval(timer)
   }, [autoFlip, interval, pages.length])
 
-  if (!allPages.length) {
+  if (!pages.length) {
     return <div className="w-full h-full bg-stone-100 flex items-center justify-center"><p className="text-[8px] text-stone-400">尚未新增頁面</p></div>
   }
 

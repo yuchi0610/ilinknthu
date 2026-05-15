@@ -306,7 +306,7 @@ function AnimationScene({ scene, onFinish }: { scene: Scene; onFinish: () => voi
         autoPlay={config.autoplay ?? true}
         loop={config.loop ?? false}
         playsInline
-        className="w-full max-h-screen object-contain"
+        className={`w-full max-h-screen ${config.video_fit === 'cover' ? 'object-cover h-screen' : 'object-contain'}`}
         onEnded={() => { if (!config.auto_advance) setEnded(true) }}
       />
       {(ended || !config.auto_advance) && (
@@ -321,13 +321,9 @@ function AnimationScene({ scene, onFinish }: { scene: Scene; onFinish: () => voi
 // ── 報紙場景 ─────────────────────────────────────────────────────
 function NewspaperScene({ scene, onFinish }: { scene: Scene; onFinish: () => void }) {
   const config = scene.config as NewspaperConfig
-  const allPages = config.pages ?? []
-  const selectedIndices = config.auto_flip_pages
-  const pages = (config.auto_flip && selectedIndices?.length)
-    ? allPages.filter((_, i) => selectedIndices.includes(i))
-    : allPages
+  const pages = config.pages ?? []
 
-  if (!allPages.length) {
+  if (!pages.length) {
     return (
       <div className="min-h-screen bg-black text-white flex flex-col items-center justify-center gap-6">
         <p className="text-zinc-500 text-sm">尚未設定頁面</p>

@@ -108,7 +108,7 @@ function MediaButton({ value, onChange, onPickMedia }: {
 type FormProps = {
   config: Record<string, unknown>
   onChange: (c: Record<string, unknown>) => void
-  onPickMedia: (cb: (url: string) => void) => void
+  onPickMedia: (cb: (url: string) => void, multi?: boolean, multiCb?: (urls: string[]) => void) => void
 }
 
 // ── 各類型表單 ────────────────────────────────────────────────────
@@ -344,6 +344,7 @@ function AnimationForm({ config, onChange, onPickMedia }: FormProps) {
         <Toggle label="自動播放" value={!!(config.autoplay ?? true)} onChange={v => onChange({ ...config, autoplay: v })} />
         <Toggle label="播完自動跳下一場景" value={!!(config.auto_advance ?? true)} onChange={v => onChange({ ...config, auto_advance: v })} />
         <Toggle label="循環播放" value={!!(config.loop)} onChange={v => onChange({ ...config, loop: v })} />
+        <Toggle label="塞滿螢幕（裁切橫式影片）" value={(config.video_fit as string) === 'cover'} onChange={v => onChange({ ...config, video_fit: v ? 'cover' : 'contain' })} />
       </div>
     </div>
   )
@@ -353,16 +354,24 @@ function NewspaperForm({ config, onChange, onPickMedia }: FormProps) {
   const pages = (config.pages as Array<Record<string, unknown>>) ?? []
   const autoFlip = !!(config.auto_flip as boolean)
   const autoFlipInterval = (config.auto_flip_interval as number) ?? 1800
-  const autoFlipPages = (config.auto_flip_pages as number[]) ?? []
 
   function replacePage(i: number, page: Record<string, unknown>) {
     onChange({ ...config, pages: pages.map((p, idx) => idx === i ? page : p) })
   }
 
-  function togglePageInAutoFlip(i: number) {
-    const current: number[] = (config.auto_flip_pages as number[]) ?? []
-    const next = current.includes(i) ? current.filter(x => x !== i) : [...current, i].sort((a, b) => a - b)
-    onChange({ ...config, auto_flip_pages: next })
+  function insertPages(atIndex: number, newPages: Array<Record<string, unknown>>) {
+    const next = [...pages]
+    next.splice(atIndex, 0, ...newPages)
+    onChange({ ...config, pages: next })
+  }
+
+  function openBulkPicker(atIndex: number) {
+    onPickMedia((url: string) => {
+      // single-select fallback (won't be used in bulk mode)
+      insertPages(atIndex, [{ image_url: url }])
+    }, true, (urls: string[]) => {
+      insertPages(atIndex, urls.map(url => ({ image_url: url })))
+    })
   }
 
   return (
@@ -373,55 +382,62 @@ function NewspaperForm({ config, onChange, onPickMedia }: FormProps) {
       <div className="border border-stone-100 rounded-xl p-3 bg-stone-50 space-y-3">
         <Toggle label="自動翻頁" value={autoFlip} onChange={v => onChange({ ...config, auto_flip: v })} />
         {autoFlip && (
-          <>
-            <Field label={`翻頁間隔：${(autoFlipInterval / 1000).toFixed(1)} 秒`}>
-              <input
-                type="range" min={600} max={5000} step={200}
-                value={autoFlipInterval}
-                onChange={e => onChange({ ...config, auto_flip_interval: Number(e.target.value) })}
-                className="w-full accent-stone-700"
-              />
-            </Field>
-            <p className="text-xs text-stone-400">
-              選擇自動翻頁的頁面（不選 = 全部）
-            </p>
-          </>
+          <Field label={`翻頁間隔：${(autoFlipInterval / 1000).toFixed(1)} 秒`}>
+            <input
+              type="range" min={600} max={5000} step={200}
+              value={autoFlipInterval}
+              onChange={e => onChange({ ...config, auto_flip_interval: Number(e.target.value) })}
+              className="w-full accent-stone-700"
+            />
+          </Field>
         )}
       </div>
 
+      {/* Insert at top */}
+      <InsertBar onInsert={() => openBulkPicker(0)} />
+
       {pages.map((page, i) => (
-        <div key={i} className="border border-stone-100 rounded-xl p-3 bg-stone-50 space-y-2.5">
-          <div className="flex justify-between items-center">
-            <div className="flex items-center gap-2">
+        <div key={i}>
+          <div className="border border-stone-100 rounded-xl p-3 bg-stone-50 space-y-2.5">
+            <div className="flex justify-between items-center">
               <span className="text-xs font-semibold text-stone-500">第 {i + 1} 頁</span>
-              {autoFlip && (
-                <label className="flex items-center gap-1 cursor-pointer">
-                  <input
-                    type="checkbox"
-                    checked={autoFlipPages.length === 0 || autoFlipPages.includes(i)}
-                    onChange={() => togglePageInAutoFlip(i)}
-                    className="accent-stone-700 w-3 h-3"
-                  />
-                  <span className="text-[10px] text-stone-400">自動翻</span>
-                </label>
-              )}
+              <button onClick={() => onChange({ ...config, pages: pages.filter((_, idx) => idx !== i) })} className="text-xs text-stone-300 hover:text-red-400">刪除</button>
             </div>
-            <button onClick={() => onChange({ ...config, pages: pages.filter((_, idx) => idx !== i) })} className="text-xs text-stone-300 hover:text-red-400">刪除</button>
+            <Field label="圖片">
+              <MediaButton value={(page.image_url as string) ?? ''} onChange={v => replacePage(i, { ...page, image_url: v })} onPickMedia={() => onPickMedia(v => replacePage(i, { ...page, image_url: v }))} />
+            </Field>
+            {!!(page.image_url as string) && (
+              <ImageAdjust config={page} onChange={p => replacePage(i, p)} prefix="image" />
+            )}
           </div>
-          <Field label="圖片">
-            <MediaButton value={(page.image_url as string) ?? ''} onChange={v => replacePage(i, { ...page, image_url: v })} onPickMedia={() => onPickMedia(v => replacePage(i, { ...page, image_url: v }))} />
-          </Field>
-          {!!(page.image_url as string) && (
-            <ImageAdjust config={page} onChange={p => replacePage(i, p)} prefix="image" />
-          )}
+          {/* Insert after each page */}
+          <InsertBar onInsert={() => openBulkPicker(i + 1)} />
         </div>
       ))}
+
+      {pages.length === 0 && (
+        <button
+          onClick={() => openBulkPicker(0)}
+          className="w-full border border-dashed border-stone-300 hover:border-stone-500 text-stone-400 hover:text-stone-600 text-sm py-2.5 rounded-xl transition-colors"
+        >
+          + 新增頁面
+        </button>
+      )}
+    </div>
+  )
+}
+
+function InsertBar({ onInsert }: { onInsert: () => void }) {
+  return (
+    <div className="flex items-center gap-2 py-1">
+      <div className="flex-1 h-px bg-stone-100" />
       <button
-        onClick={() => onChange({ ...config, pages: [...pages, { image_url: '' }] })}
-        className="w-full border border-dashed border-stone-300 hover:border-stone-500 text-stone-400 hover:text-stone-600 text-sm py-2.5 rounded-xl transition-colors"
+        onClick={onInsert}
+        className="text-[10px] text-stone-400 hover:text-stone-700 border border-dashed border-stone-200 hover:border-stone-400 px-2.5 py-0.5 rounded-full transition-colors flex-shrink-0"
       >
-        + 新增頁面
+        + 在此插入圖片
       </button>
+      <div className="flex-1 h-px bg-stone-100" />
     </div>
   )
 }
@@ -495,11 +511,13 @@ export default function SceneEditor({ scene }: { scene: Scene }) {
   const [saving, setSaving] = useState(false)
   const [saved, setSaved] = useState(false)
   const [pickerCb, setPickerCb] = useState<((url: string) => void) | null>(null)
+  const [pickerMultiCb, setPickerMultiCb] = useState<((urls: string[]) => void) | null>(null)
 
   const ConfigForm = CONFIG_FORM[scene.type]
 
-  function openMediaPicker(cb: (url: string) => void) {
+  function openMediaPicker(cb: (url: string) => void, multi?: boolean, multiCb?: (urls: string[]) => void) {
     setPickerCb(() => cb)
+    setPickerMultiCb(multi && multiCb ? () => multiCb : null)
   }
 
   async function handleSave() {
@@ -518,8 +536,10 @@ export default function SceneEditor({ scene }: { scene: Scene }) {
     <>
       {pickerCb && (
         <MediaPickerModal
-          onSelect={url => { pickerCb(url); setPickerCb(null) }}
-          onClose={() => setPickerCb(null)}
+          onSelect={url => { pickerCb(url); setPickerCb(null); setPickerMultiCb(null) }}
+          onSelectMultiple={pickerMultiCb ? urls => { pickerMultiCb(urls); setPickerCb(null); setPickerMultiCb(null) } : undefined}
+          onClose={() => { setPickerCb(null); setPickerMultiCb(null) }}
+          multiSelect={!!pickerMultiCb}
         />
       )}
 
