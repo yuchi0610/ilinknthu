@@ -24,3 +24,23 @@ body {
   color: var(--foreground);
   font-family: Arial, Helvetica, sans-serif;
 }
+
+@keyframes flashAnim {
+  0%   { opacity: 0; }
+  25%  { opacity: 1; }
+  100% { opacity: 0; }
+}
+
+@keyframes filmJitter {
+  0%   { transform: translate(0,      0)     scale(1); }
+  25%  { transform: translate(-0.5px, 0.4px) scale(1.002); }
+  50%  { transform: translate(0.7px, -0.5px) scale(0.999); }
+  75%  { transform: translate(-0.4px, 0.6px) scale(1.001); }
+  100% { transform: translate(0,      0)     scale(1); }
+}
+
+@keyframes projectorWarmup {
+  0%   { opacity: 0.95; filter: blur(12px); }
+  40%  { opacity: 0.65; filter: blur(4px); }
+  100% { opacity: 0;    filter: blur(0); }
+}

@@ -277,6 +277,20 @@ function TextScene({ scene, onFinish }: { scene: Scene; onFinish: () => void }) 
 // ── 影片場景 ─────────────────────────────────────────────────────
 function AnimationScene({ scene, onFinish }: { scene: Scene; onFinish: () => void }) {
   const config = scene.config as AnimationConfig
+  const [flashing, setFlashing] = useState(false)
+  const [startup, setStartup] = useState(true)
+  const onFinishRef = useRef(onFinish)
+  useEffect(() => { onFinishRef.current = onFinish }, [onFinish])
+
+  useEffect(() => {
+    const t = setTimeout(() => setStartup(false), 1200)
+    return () => clearTimeout(t)
+  }, [])
+
+  function handleEnded() {
+    setFlashing(true)
+    setTimeout(() => onFinishRef.current(), 700)
+  }
 
   if (!config.video_url) {
     return (
@@ -287,15 +301,33 @@ function AnimationScene({ scene, onFinish }: { scene: Scene; onFinish: () => voi
   }
 
   return (
-    <div className="min-h-dvh bg-black flex flex-col items-center justify-center relative">
+    <div
+      className="min-h-dvh bg-black relative overflow-hidden"
+      style={{ animation: 'filmJitter 0.16s steps(2, end) infinite' }}
+    >
       <video
         src={config.video_url}
         autoPlay={config.autoplay ?? true}
         loop={config.loop ?? false}
         playsInline
-        className={`w-full max-h-screen ${config.video_fit === 'cover' ? 'object-cover h-screen' : 'object-contain'}`}
-        onEnded={onFinish}
+        className={`w-full h-full absolute inset-0 ${config.video_fit === 'cover' ? 'object-cover' : 'object-contain'}`}
+        onEnded={handleEnded}
       />
+      {startup && (
+        <div
+          className="absolute inset-0 pointer-events-none z-10"
+          style={{
+            background: 'radial-gradient(circle at center, rgba(255,255,255,0.18) 0%, rgba(255,255,255,0.02) 48%, rgba(0,0,0,0.9) 100%)',
+            animation: 'projectorWarmup 1.2s ease-out forwards',
+          }}
+        />
+      )}
+      {flashing && (
+        <div
+          className="fixed inset-0 bg-white pointer-events-none z-[9999]"
+          style={{ animation: 'flashAnim 0.8s cubic-bezier(0.23,1,0.32,1) forwards' }}
+        />
+      )}
     </div>
   )
 }

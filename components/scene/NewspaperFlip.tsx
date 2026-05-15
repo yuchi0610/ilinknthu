@@ -20,8 +20,8 @@ interface FlatPage {
 }
 
 interface AutoRange {
-  start: number   // inclusive flat index
-  end: number     // inclusive flat index
+  start: number
+  end: number
   interval: number
 }
 
@@ -66,9 +66,11 @@ export default function NewspaperFlip({ items, onFinish }: Props) {
   const bookRef = useRef<{ pageFlip: () => { flipNext: (c?: string) => void; flipPrev: (c?: string) => void; getCurrentPageIndex: () => number } }>(null)
   const [currentIdx, setCurrentIdx] = useState(0)
   const [ready, setReady] = useState(false)
+  const [flashing, setFlashing] = useState(false)
   const touchStartX = useRef(0)
   const touchStartY = useRef(0)
-  const autoTimerRef = useRef<ReturnType<typeof setInterval> | null>(null)
+  const autoTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
+  const autoDelayRef = useRef(300)
   const onFinishRef = useRef(onFinish)
   useEffect(() => { onFinishRef.current = onFinish }, [onFinish])
 
@@ -76,38 +78,61 @@ export default function NewspaperFlip({ items, onFinish }: Props) {
   const isAuto = !!currentAutoRange
   const isLast = currentIdx >= flatPages.length - 1
 
-  // Auto-advance when reaching the last manual page
+  function flashThenFinish(delayBeforeFlash = 0) {
+    setTimeout(() => {
+      setFlashing(true)
+      setTimeout(() => onFinishRef.current(), 700)
+    }, delayBeforeFlash)
+  }
+
+  // Accelerating auto-flip: each page halves the delay (min 40 ms), matching reference
+  useEffect(() => {
+    if (autoTimerRef.current) { clearTimeout(autoTimerRef.current); autoTimerRef.current = null }
+    if (!ready || !currentAutoRange) { autoDelayRef.current = 300; return }
+
+    autoDelayRef.current = 300
+    let cancelled = false
+    const range = currentAutoRange  // capture so TS knows it's non-null inside async callbacks
+
+    function scheduleTick() {
+      autoTimerRef.current = setTimeout(() => {
+        if (cancelled) return
+        const pf = bookRef.current?.pageFlip()
+        if (!pf) return
+        const idx = pf.getCurrentPageIndex()
+
+        if (idx >= range.end) {
+          if (idx >= flatPages.length - 1) {
+            flashThenFinish()
+          } else {
+            // flip once more into the next manual page
+            setTimeout(() => { if (!cancelled) bookRef.current?.pageFlip()?.flipNext('bottom') }, 300)
+          }
+          return
+        }
+
+        pf.flipNext('bottom')
+        autoDelayRef.current = Math.max(40, autoDelayRef.current * 0.7)
+        scheduleTick()
+      }, autoDelayRef.current)
+    }
+
+    scheduleTick()
+
+    return () => {
+      cancelled = true
+      if (autoTimerRef.current) { clearTimeout(autoTimerRef.current); autoTimerRef.current = null }
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [ready, currentAutoRange?.start])
+
+  // Auto-advance on last manual page
   useEffect(() => {
     if (!ready || !isLast || isAuto) return
-    const t = setTimeout(() => onFinishRef.current(), 1000)
+    const t = setTimeout(() => flashThenFinish(), 1000)
     return () => clearTimeout(t)
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [ready, isLast, isAuto])
-
-  // Auto-flip logic when inside an auto range
-  useEffect(() => {
-    if (autoTimerRef.current) { clearInterval(autoTimerRef.current); autoTimerRef.current = null }
-    if (!ready || !currentAutoRange) return
-
-    autoTimerRef.current = setInterval(() => {
-      const pf = bookRef.current?.pageFlip()
-      if (!pf) return
-      const idx = pf.getCurrentPageIndex()
-      if (idx >= currentAutoRange.end) {
-        clearInterval(autoTimerRef.current!); autoTimerRef.current = null
-        if (idx >= flatPages.length - 1) {
-          // Last page of entire book — finish scene
-          setTimeout(() => onFinishRef.current(), currentAutoRange.interval * 0.4)
-        } else {
-          // Flip once more to the first manual page after the auto range
-          setTimeout(() => bookRef.current?.pageFlip()?.flipNext('bottom'), 300)
-        }
-      } else {
-        pf.flipNext('bottom')
-      }
-    }, currentAutoRange.interval)
-
-    return () => { if (autoTimerRef.current) { clearInterval(autoTimerRef.current); autoTimerRef.current = null } }
-  }, [ready, currentAutoRange?.start, currentAutoRange?.interval])
 
   // Manual swipe — StPageFlip mouse events always off; we handle touch ourselves
   function handleTouchStart(e: React.TouchEvent) {
@@ -119,7 +144,6 @@ export default function NewspaperFlip({ items, onFinish }: Props) {
     if (isAuto) return
     const dx = e.changedTouches[0].clientX - touchStartX.current
     const dy = Math.abs(e.changedTouches[0].clientY - touchStartY.current)
-    // Require clear horizontal swipe: min 70px horizontal, dy < 60% of dx
     if (Math.abs(dx) < 70 || dy > Math.abs(dx) * 0.6) return
     const pf = bookRef.current?.pageFlip()
     if (!pf) return
@@ -131,7 +155,6 @@ export default function NewspaperFlip({ items, onFinish }: Props) {
     return (
       <div className="min-h-dvh bg-black text-white flex flex-col items-center justify-center gap-6">
         <p className="text-zinc-500 text-sm">尚未設定頁面</p>
-        <button onClick={onFinish} className="border border-white/30 text-white text-sm tracking-widest px-10 py-4">繼 續 →</button>
       </div>
     )
   }
@@ -155,7 +178,7 @@ export default function NewspaperFlip({ items, onFinish }: Props) {
         maxHeight={900}
         startPage={0}
         drawShadow={true}
-        flippingTime={600}
+        flippingTime={400}
         usePortrait={true}
         startZIndex={10}
         autoSize={true}
@@ -175,6 +198,13 @@ export default function NewspaperFlip({ items, onFinish }: Props) {
           <Page key={i} page={page} />
         ))}
       </HTMLFlipBook>
+
+      {flashing && (
+        <div
+          className="fixed inset-0 bg-white pointer-events-none z-[9999]"
+          style={{ animation: 'flashAnim 1.2s cubic-bezier(0.23,1,0.32,1) forwards' }}
+        />
+      )}
     </div>
   )
 }
