@@ -552,7 +552,7 @@ function PreviewContent({ scene, interactive }: { scene: Scene; interactive?: bo
       return (
         <div className="w-full h-full bg-black flex items-center justify-center">
           {c.video_url
-            ? <video src={c.video_url} className="w-full h-full object-contain" autoPlay muted loop playsInline />
+            ? <video src={c.video_url} className={`w-full h-full ${c.video_fit === 'cover' ? 'object-cover' : 'object-contain'}`} autoPlay muted loop playsInline />
             : <p className="text-white/25 text-[9px]">影片未設定</p>
           }
         </div>
