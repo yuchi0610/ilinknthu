@@ -352,18 +352,61 @@ function AnimationForm({ config, onChange, onPickMedia }: FormProps) {
 
 function NewspaperForm({ config, onChange, onPickMedia }: FormProps) {
   const pages = (config.pages as Array<Record<string, unknown>>) ?? []
+  const autoFlip = !!(config.auto_flip as boolean)
+  const autoFlipInterval = (config.auto_flip_interval as number) ?? 1800
+  const autoFlipPages = (config.auto_flip_pages as number[]) ?? []
 
   function replacePage(i: number, page: Record<string, unknown>) {
     onChange({ ...config, pages: pages.map((p, idx) => idx === i ? page : p) })
   }
 
+  function togglePageInAutoFlip(i: number) {
+    const current: number[] = (config.auto_flip_pages as number[]) ?? []
+    const next = current.includes(i) ? current.filter(x => x !== i) : [...current, i].sort((a, b) => a - b)
+    onChange({ ...config, auto_flip_pages: next })
+  }
+
   return (
     <div className="space-y-3">
       <p className="text-xs text-stone-400">每頁放一張圖片，左滑翻頁。</p>
+
+      {/* Auto-flip controls */}
+      <div className="border border-stone-100 rounded-xl p-3 bg-stone-50 space-y-3">
+        <Toggle label="自動翻頁" value={autoFlip} onChange={v => onChange({ ...config, auto_flip: v })} />
+        {autoFlip && (
+          <>
+            <Field label={`翻頁間隔：${(autoFlipInterval / 1000).toFixed(1)} 秒`}>
+              <input
+                type="range" min={600} max={5000} step={200}
+                value={autoFlipInterval}
+                onChange={e => onChange({ ...config, auto_flip_interval: Number(e.target.value) })}
+                className="w-full accent-stone-700"
+              />
+            </Field>
+            <p className="text-xs text-stone-400">
+              選擇自動翻頁的頁面（不選 = 全部）
+            </p>
+          </>
+        )}
+      </div>
+
       {pages.map((page, i) => (
         <div key={i} className="border border-stone-100 rounded-xl p-3 bg-stone-50 space-y-2.5">
           <div className="flex justify-between items-center">
-            <span className="text-xs font-semibold text-stone-500">第 {i + 1} 頁</span>
+            <div className="flex items-center gap-2">
+              <span className="text-xs font-semibold text-stone-500">第 {i + 1} 頁</span>
+              {autoFlip && (
+                <label className="flex items-center gap-1 cursor-pointer">
+                  <input
+                    type="checkbox"
+                    checked={autoFlipPages.length === 0 || autoFlipPages.includes(i)}
+                    onChange={() => togglePageInAutoFlip(i)}
+                    className="accent-stone-700 w-3 h-3"
+                  />
+                  <span className="text-[10px] text-stone-400">自動翻</span>
+                </label>
+              )}
+            </div>
             <button onClick={() => onChange({ ...config, pages: pages.filter((_, idx) => idx !== i) })} className="text-xs text-stone-300 hover:text-red-400">刪除</button>
           </div>
           <Field label="圖片">

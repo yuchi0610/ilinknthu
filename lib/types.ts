@@ -27,6 +27,9 @@ export interface NewspaperPage {
 
 export interface NewspaperConfig {
   pages: NewspaperPage[]
+  auto_flip?: boolean          // auto-advance through pages
+  auto_flip_interval?: number  // ms between flips, default 1800
+  auto_flip_pages?: number[]   // page indices to include; empty/undefined = all
 }
 
 export interface DialogLine {

@@ -178,17 +178,39 @@ function MiniDialogPreview({ config }: { config: DialogConfig }) {
 
 // ── 互動報紙預覽（滑動翻頁） ──────────────────────────────────────
 function MiniNewspaperPreview({ config }: { config: NewspaperConfig }) {
-  const pages = config.pages ?? []
+  const allPages = config.pages ?? []
+  const autoFlip = !!config.auto_flip
+  const interval = config.auto_flip_interval ?? 1800
+  const selectedIndices = config.auto_flip_pages
+  const pages = (autoFlip && selectedIndices?.length)
+    ? allPages.filter((_, i) => selectedIndices.includes(i))
+    : allPages
+
   const [index, setIndex] = useState(0)
   const [flipAnim, setFlipAnim] = useState<{ fromIdx: number; dir: 'fwd' | 'back' } | null>(null)
   const dragStartX = useRef<number | null>(null)
 
-  if (!pages.length) {
+  // Auto-flip in preview
+  useEffect(() => {
+    if (!autoFlip || !pages.length) return
+    const timer = setInterval(() => {
+      setIndex(prev => {
+        const next = prev + 1
+        if (next >= pages.length) { clearInterval(timer); return prev }
+        setFlipAnim({ fromIdx: prev, dir: 'fwd' })
+        setTimeout(() => setFlipAnim(null), 780)
+        return next
+      })
+    }, interval)
+    return () => clearInterval(timer)
+  }, [autoFlip, interval, pages.length])
+
+  if (!allPages.length) {
     return <div className="w-full h-full bg-stone-100 flex items-center justify-center"><p className="text-[8px] text-stone-400">尚未新增頁面</p></div>
   }
 
   function advance(dir: 'fwd' | 'back') {
-    if (flipAnim) return
+    if (flipAnim || autoFlip) return
     const next = index + (dir === 'fwd' ? 1 : -1)
     if (next < 0 || next >= pages.length) return
     setFlipAnim({ fromIdx: index, dir })
@@ -202,7 +224,6 @@ function MiniNewspaperPreview({ config }: { config: NewspaperConfig }) {
     const dx = x - dragStartX.current
     dragStartX.current = null
     if (Math.abs(dx) < 12) {
-      // treat as click — right half forward, left half back
       const rect = (e.currentTarget as HTMLElement).getBoundingClientRect()
       advance(x - rect.left > rect.width / 2 ? 'fwd' : 'back')
     } else {
@@ -266,6 +287,12 @@ function MiniNewspaperPreview({ config }: { config: NewspaperConfig }) {
           {pages.map((_, i) => (
             <span key={i} className={`w-1 h-1 rounded-full ${i === index ? 'bg-white shadow' : 'bg-white/40'}`} />
           ))}
+        </div>
+      )}
+
+      {autoFlip && (
+        <div className="absolute top-2 right-2 bg-black/50 text-white text-[8px] px-1.5 py-0.5 rounded pointer-events-none tracking-wide">
+          自動翻頁
         </div>
       )}
     </div>

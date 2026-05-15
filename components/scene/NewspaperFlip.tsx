@@ -1,8 +1,8 @@
 'use client'
 
-import { useRef, useState, forwardRef } from 'react'
+import { useRef, useState, useEffect, forwardRef } from 'react'
 import HTMLFlipBook from 'react-pageflip'
-import type { NewspaperConfig } from '@/lib/types'
+import type { NewspaperConfig, NewspaperPage } from '@/lib/types'
 
 function bgCss(url: string, x = 50, y = 50, zoom = 100): React.CSSProperties {
   return {
@@ -12,8 +12,7 @@ function bgCss(url: string, x = 50, y = 50, zoom = 100): React.CSSProperties {
   }
 }
 
-// react-pageflip requires children to be forwardRef components
-const Page = forwardRef<HTMLDivElement, { page: NewspaperConfig['pages'][number] }>(
+const Page = forwardRef<HTMLDivElement, { page: NewspaperPage }>(
   function Page({ page }, ref) {
     return (
       <div ref={ref} className="w-full h-full overflow-hidden">
@@ -27,18 +26,34 @@ const Page = forwardRef<HTMLDivElement, { page: NewspaperConfig['pages'][number]
 )
 
 interface Props {
-  pages: NewspaperConfig['pages']
+  pages: NewspaperPage[]
   onFinish: () => void
+  autoFlip?: boolean
+  autoFlipInterval?: number
 }
 
-export default function NewspaperFlip({ pages, onFinish }: Props) {
-  const bookRef = useRef<{ pageFlip: () => { getCurrentPageIndex: () => number; getPageCount: () => number } }>(null)
+export default function NewspaperFlip({ pages, onFinish, autoFlip = false, autoFlipInterval = 1800 }: Props) {
+  const bookRef = useRef<{ pageFlip: () => { flipNext: (c?: string) => void; getCurrentPageIndex: () => number } }>(null)
   const [currentPage, setCurrentPage] = useState(0)
+  const [ready, setReady] = useState(false)
   const isLast = currentPage >= pages.length - 1
 
-  function handleFlip(e: { data: number }) {
-    setCurrentPage(e.data)
-  }
+  // Auto-flip: after init, schedule repeated flipNext calls
+  useEffect(() => {
+    if (!autoFlip || !ready) return
+    const timer = setInterval(() => {
+      const pf = bookRef.current?.pageFlip()
+      if (!pf) return
+      const idx = pf.getCurrentPageIndex()
+      if (idx >= pages.length - 1) {
+        clearInterval(timer)
+        setTimeout(onFinish, autoFlipInterval * 0.4)
+      } else {
+        pf.flipNext('bottom')
+      }
+    }, autoFlipInterval)
+    return () => clearInterval(timer)
+  }, [autoFlip, ready, autoFlipInterval, pages.length, onFinish])
 
   return (
     <div className="min-h-screen bg-zinc-900 flex flex-col items-center justify-center select-none overflow-hidden">
@@ -63,11 +78,12 @@ export default function NewspaperFlip({ pages, onFinish }: Props) {
         showCover={false}
         mobileScrollSupport={false}
         clickEventForward={false}
-        useMouseEvents={true}
+        useMouseEvents={!autoFlip}
         swipeDistance={30}
-        showPageCorners={true}
-        disableFlipByClick={false}
-        onFlip={handleFlip}
+        showPageCorners={!autoFlip}
+        disableFlipByClick={autoFlip}
+        onFlip={(e: { data: number }) => setCurrentPage(e.data)}
+        onInit={() => setReady(true)}
         renderOnlyPageLengthChange={false}
       >
         {pages.map((page, i) => (
@@ -75,7 +91,6 @@ export default function NewspaperFlip({ pages, onFinish }: Props) {
         ))}
       </HTMLFlipBook>
 
-      {/* Progress dots */}
       {pages.length > 1 && (
         <div className="flex justify-center gap-1.5 mt-4">
           {pages.map((_, i) => (
@@ -87,8 +102,8 @@ export default function NewspaperFlip({ pages, onFinish }: Props) {
         </div>
       )}
 
-      {/* Finish button shown on last page */}
-      {isLast && (
+      {/* Manual mode: show button on last page */}
+      {!autoFlip && isLast && (
         <button
           onClick={onFinish}
           className="mt-5 border border-white/30 hover:border-white/60 text-white text-sm tracking-widest px-10 py-4 transition-colors"

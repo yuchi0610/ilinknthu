@@ -321,9 +321,13 @@ function AnimationScene({ scene, onFinish }: { scene: Scene; onFinish: () => voi
 // ── 報紙場景 ─────────────────────────────────────────────────────
 function NewspaperScene({ scene, onFinish }: { scene: Scene; onFinish: () => void }) {
   const config = scene.config as NewspaperConfig
-  const pages = config.pages ?? []
+  const allPages = config.pages ?? []
+  const selectedIndices = config.auto_flip_pages
+  const pages = (config.auto_flip && selectedIndices?.length)
+    ? allPages.filter((_, i) => selectedIndices.includes(i))
+    : allPages
 
-  if (!pages.length) {
+  if (!allPages.length) {
     return (
       <div className="min-h-screen bg-black text-white flex flex-col items-center justify-center gap-6">
         <p className="text-zinc-500 text-sm">尚未設定頁面</p>
@@ -332,7 +336,14 @@ function NewspaperScene({ scene, onFinish }: { scene: Scene; onFinish: () => voi
     )
   }
 
-  return <NewspaperFlip pages={pages} onFinish={onFinish} />
+  return (
+    <NewspaperFlip
+      pages={pages}
+      onFinish={onFinish}
+      autoFlip={config.auto_flip}
+      autoFlipInterval={config.auto_flip_interval}
+    />
+  )
 }
 
 // ── 簽名場景 ─────────────────────────────────────────────────────
