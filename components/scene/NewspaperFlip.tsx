@@ -69,6 +69,8 @@ export default function NewspaperFlip({ items, onFinish }: Props) {
   const touchStartX = useRef(0)
   const touchStartY = useRef(0)
   const autoTimerRef = useRef<ReturnType<typeof setInterval> | null>(null)
+  const onFinishRef = useRef(onFinish)
+  useEffect(() => { onFinishRef.current = onFinish }, [onFinish])
 
   const currentAutoRange = autoRanges.find(r => currentIdx >= r.start && currentIdx <= r.end) ?? null
   const isAuto = !!currentAutoRange
@@ -85,8 +87,13 @@ export default function NewspaperFlip({ items, onFinish }: Props) {
       const idx = pf.getCurrentPageIndex()
       if (idx >= currentAutoRange.end) {
         clearInterval(autoTimerRef.current!); autoTimerRef.current = null
-        // If it's also the very last page, finish the scene
-        if (idx >= flatPages.length - 1) setTimeout(onFinish, currentAutoRange.interval * 0.4)
+        if (idx >= flatPages.length - 1) {
+          // Last page of entire book — finish scene
+          setTimeout(() => onFinishRef.current(), currentAutoRange.interval * 0.4)
+        } else {
+          // Flip once more to the first manual page after the auto range
+          setTimeout(() => bookRef.current?.pageFlip()?.flipNext('bottom'), 300)
+        }
       } else {
         pf.flipNext('bottom')
       }
@@ -95,7 +102,7 @@ export default function NewspaperFlip({ items, onFinish }: Props) {
     return () => { if (autoTimerRef.current) { clearInterval(autoTimerRef.current); autoTimerRef.current = null } }
   }, [ready, currentAutoRange?.start, currentAutoRange?.interval])
 
-  // Manual swipe — only active when not in auto range
+  // Manual swipe — StPageFlip mouse events always off; we handle touch ourselves
   function handleTouchStart(e: React.TouchEvent) {
     touchStartX.current = e.touches[0].clientX
     touchStartY.current = e.touches[0].clientY
@@ -105,7 +112,8 @@ export default function NewspaperFlip({ items, onFinish }: Props) {
     if (isAuto) return
     const dx = e.changedTouches[0].clientX - touchStartX.current
     const dy = Math.abs(e.changedTouches[0].clientY - touchStartY.current)
-    if (Math.abs(dx) < 40 || dy > Math.abs(dx)) return
+    // Require clear horizontal swipe: min 70px horizontal, dy < 60% of dx
+    if (Math.abs(dx) < 70 || dy > Math.abs(dx) * 0.6) return
     const pf = bookRef.current?.pageFlip()
     if (!pf) return
     if (dx < 0) pf.flipNext('bottom')
@@ -148,10 +156,10 @@ export default function NewspaperFlip({ items, onFinish }: Props) {
         showCover={false}
         mobileScrollSupport={false}
         clickEventForward={false}
-        useMouseEvents={!isAuto}
-        swipeDistance={30}
+        useMouseEvents={false}
+        swipeDistance={999}
         showPageCorners={!isAuto}
-        disableFlipByClick={isAuto}
+        disableFlipByClick={true}
         onFlip={(e: { data: number }) => setCurrentIdx(e.data)}
         onInit={() => setReady(true)}
         renderOnlyPageLengthChange={false}

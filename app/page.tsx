@@ -9,6 +9,8 @@ export default function StartPage() {
   const [content, setContent] = useState<{ scenes: Scene[]; endings: Ending[] } | null>(null)
 
   async function handleStart() {
+    // Request fullscreen on first user gesture (supported on Android Chrome; no-op elsewhere)
+    document.documentElement.requestFullscreen?.().catch(() => {})
     setLoading(true)
     const [sessionRes, contentRes] = await Promise.all([
       fetch('/api/sessions', { method: 'POST' }),
@@ -29,7 +31,7 @@ export default function StartPage() {
   }
 
   return (
-    <div className="min-h-screen bg-black flex flex-col items-center justify-center p-8 text-white">
+    <div className="mx-auto max-w-[390px] min-h-screen bg-black flex flex-col items-center justify-center p-8 text-white">
       <div className="text-center max-w-sm">
         <p className="text-xs tracking-widest text-zinc-500 mb-6">互動敘事體驗</p>
         <h1 className="text-2xl font-bold leading-relaxed mb-2">核去核從</h1>

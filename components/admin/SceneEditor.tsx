@@ -73,8 +73,9 @@ function ImageAdjust({ config, onChange, prefix = 'background' }: {
   )
 }
 
-function MediaButton({ value, onChange, onPickMedia }: {
+function MediaButton({ value, onChange, onPickMedia, previewStyle }: {
   value: string; onChange: (v: string) => void; onPickMedia: () => void
+  previewStyle?: React.CSSProperties
 }) {
   const isVideo = /\.(mp4|webm|mov|avi)(\?|$)/i.test(value)
   if (!value) {
@@ -93,7 +94,9 @@ function MediaButton({ value, onChange, onPickMedia }: {
       <div className="relative h-24 bg-stone-100">
         {isVideo
           ? <video src={value} className="w-full h-full object-cover" muted />
-          : <img src={value} className="w-full h-full object-cover" alt="" />
+          : previewStyle
+            ? <div className="w-full h-full" style={previewStyle} />
+            : <img src={value} className="w-full h-full object-cover" alt="" />
         }
       </div>
       <div className="flex gap-3 px-3 py-1.5 bg-stone-50 border-t border-stone-100">
@@ -443,6 +446,11 @@ function NewspaperForm({ config, onChange, onPickMedia }: FormProps) {
                   value={(item.image_url as string) ?? ''}
                   onChange={v => replaceItem(i, { ...item, image_url: v })}
                   onPickMedia={() => onPickMedia(v => replaceItem(i, { ...item, image_url: v }))}
+                  previewStyle={(item.image_url as string) ? {
+                    backgroundImage: `url(${item.image_url})`,
+                    backgroundSize: ((item.image_zoom as number) ?? 100) === 100 ? 'cover' : `${item.image_zoom}%`,
+                    backgroundPosition: `${item.image_x ?? 50}% ${item.image_y ?? 50}%`,
+                  } : undefined}
                 />
               </Field>
               {!!(item.image_url as string) && (
@@ -586,10 +594,8 @@ export default function SceneEditor({ scene }: { scene: Scene }) {
 
       <div className="flex h-full">
         {/* 左側：手機預覽 */}
-        <div className="flex-shrink-0 bg-stone-100 border-r border-stone-200 flex flex-col items-center justify-center p-6 gap-3" style={{ width: 272 }}>
-          <p className="text-[11px] text-stone-400 font-medium tracking-widest uppercase">預覽</p>
+        <div className="flex-shrink-0 bg-stone-100 border-r border-stone-200 flex flex-col items-center justify-center p-6" style={{ width: 272 }}>
           <ScenePhonePreview scene={{ ...scene, title, config, visible }} interactive />
-          <p className="text-[10px] text-stone-300">即時反映・可互動</p>
         </div>
 
         {/* 右側：編輯面板 */}

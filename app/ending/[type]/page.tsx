@@ -18,7 +18,7 @@ export default async function EndingPage({ params }: { params: Promise<{ type: s
   const s = ENDING_STYLE[key] ?? ENDING_STYLE['C']
 
   return (
-    <div className={`min-h-screen bg-gradient-to-b ${s.from} ${s.to} flex flex-col items-center justify-center p-8`}>
+    <div className={`mx-auto max-w-[390px] min-h-screen bg-gradient-to-b ${s.from} ${s.to} flex flex-col items-center justify-center p-8`}>
       <div className="text-center max-w-sm w-full">
         <span className={`inline-block text-[10px] font-medium px-3 py-1 rounded-full border tracking-[0.2em] uppercase mb-8 ${s.badge}`}>
           結局 {key}
