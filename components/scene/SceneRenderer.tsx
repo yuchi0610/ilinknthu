@@ -20,10 +20,9 @@ interface Props {
   nextScene: Scene | null
   endings: Ending[]
   onFinish: () => void
-  onFinishWithFlash?: () => void
 }
 
-export default function SceneRenderer({ scene, nextScene, endings, onFinish, onFinishWithFlash }: Props) {
+export default function SceneRenderer({ scene, nextScene, endings, onFinish }: Props) {
   const router = useRouter()
 
   function goNext() {
@@ -56,7 +55,7 @@ export default function SceneRenderer({ scene, nextScene, endings, onFinish, onF
     case 'dialog':    return <DialogScene scene={scene} onFinish={goNext} />
     case 'text':      return <TextScene scene={scene} onFinish={goNext} />
     case 'animation': return <AnimationScene scene={scene} onFinish={goNext} />
-    case 'newspaper': return <NewspaperScene scene={scene} onFinish={onFinishWithFlash ?? goNext} />
+    case 'newspaper': return <NewspaperScene scene={scene} onFinish={goNext} />
     case 'signature': return <SignatureScene scene={scene} onFinish={goNext} />
     case 'game':      return <GameScene scene={scene} onFinish={(score) => { addScore(scene.id, score); goNext() }} />
     default:

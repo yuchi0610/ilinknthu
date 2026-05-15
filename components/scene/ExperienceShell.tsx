@@ -15,20 +15,12 @@ const SHELL = 'fixed inset-0 overflow-hidden sm:relative sm:inset-auto sm:overfl
 
 export default function ExperienceShell({ scenes, endings }: Props) {
   const [sceneIndex, setSceneIndex] = useState(0)
-  const [flashing, setFlashing] = useState(false)
 
   const currentScene = scenes[sceneIndex]
   const nextScene = scenes[sceneIndex + 1] ?? null
 
   function handleFinish() {
     setSceneIndex(i => i + 1)
-  }
-
-  // Called by newspaper scene — white flash covers the transition so there's no black frame
-  function handleFinishWithFlash() {
-    setFlashing(true)
-    setSceneIndex(i => i + 1)
-    setTimeout(() => setFlashing(false), 1200)
   }
 
   if (!currentScene) {
@@ -47,14 +39,7 @@ export default function ExperienceShell({ scenes, endings }: Props) {
         nextScene={nextScene}
         endings={endings}
         onFinish={handleFinish}
-        onFinishWithFlash={handleFinishWithFlash}
       />
-      {flashing && (
-        <div
-          className="fixed inset-0 bg-white pointer-events-none z-[9999]"
-          style={{ animation: 'flashAnim 1.2s cubic-bezier(0.23,1,0.32,1) forwards' }}
-        />
-      )}
     </div>
   )
 }
