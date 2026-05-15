@@ -309,7 +309,7 @@ function DialogForm({ config, onChange, onPickMedia }: FormProps) {
                   <div className="flex justify-between text-xs text-stone-400 mt-0.5"><span>縮小</span><span>原尺寸</span><span>放大</span></div>
                 </Field>
                 <Field label={`垂直位置：${d.character_y ?? 0}%`}>
-                  <input type="range" min={-30} max={60} step={1}
+                  <input type="range" min={-100} max={60} step={1}
                     value={(d.character_y as number) ?? 0}
                     onChange={e => updateDialog(i, 'character_y', Number(e.target.value))}
                     className="w-full accent-stone-700" />
