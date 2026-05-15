@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState } from 'react'
 import SceneRenderer from './SceneRenderer'
 import type { Scene, Ending } from '@/lib/types'
 
@@ -25,12 +25,10 @@ export default function ExperienceShell({ scenes, endings }: Props) {
     setSceneIndex(i => i + 1)
   }
 
-  // Remove outgoing scene after new scene has painted (no black frame)
-  useEffect(() => {
-    if (!outgoing) return
-    const id = requestAnimationFrame(() => setOutgoing(null))
-    return () => cancelAnimationFrame(id)
-  }, [sceneIndex]) // eslint-disable-line react-hooks/exhaustive-deps
+  // Called by new scene when its first frame is ready to show
+  function handleReady() {
+    setOutgoing(null)
+  }
 
   if (!currentScene) {
     return (
@@ -42,27 +40,30 @@ export default function ExperienceShell({ scenes, endings }: Props) {
 
   return (
     <div className={`${SHELL} bg-black`}>
-      {/* Outgoing scene stays rendered underneath until new scene has painted */}
-      {outgoing && (
-        <div className="absolute inset-0 z-0 pointer-events-none">
-          <SceneRenderer
-            key={outgoing.id}
-            scene={outgoing}
-            nextScene={null}
-            endings={endings}
-            onFinish={() => {}}
-          />
-        </div>
-      )}
-      <div className="absolute inset-0 z-10">
+      {/* New scene renders underneath — invisible behind outgoing */}
+      <div className="absolute inset-0 z-0">
         <SceneRenderer
           key={currentScene.id}
           scene={currentScene}
           nextScene={nextScene}
           endings={endings}
           onFinish={handleFinish}
+          onReady={handleReady}
         />
       </div>
+      {/* Outgoing scene stays on top until new scene signals ready */}
+      {outgoing && (
+        <div className="absolute inset-0 z-10 pointer-events-none">
+          <SceneRenderer
+            key={outgoing.id}
+            scene={outgoing}
+            nextScene={null}
+            endings={endings}
+            onFinish={() => {}}
+            onReady={() => {}}
+          />
+        </div>
+      )}
     </div>
   )
 }

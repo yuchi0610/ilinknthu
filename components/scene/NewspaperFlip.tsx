@@ -58,9 +58,10 @@ const Page = forwardRef<HTMLDivElement, { page: FlatPage }>(
 interface Props {
   items: NewspaperItem[]
   onFinish: () => void
+  onReady?: () => void
 }
 
-export default function NewspaperFlip({ items, onFinish }: Props) {
+export default function NewspaperFlip({ items, onFinish, onReady }: Props) {
   const { flatPages, autoRanges } = useMemo(() => flattenItems(items), [items])
 
   const bookRef = useRef<{ pageFlip: () => { flipNext: (c?: string) => void; flipPrev: (c?: string) => void; getCurrentPageIndex: () => number } }>(null)
@@ -78,11 +79,11 @@ export default function NewspaperFlip({ items, onFinish }: Props) {
   // Preload all images before showing the flipbook to prevent black-screen during flip
   useEffect(() => {
     const urls = flatPages.map(p => p.image_url).filter(Boolean)
-    if (!urls.length) { setImagesLoaded(true); return }
+    if (!urls.length) { setImagesLoaded(true); onReady?.(); return }
     let done = 0
     urls.forEach(url => {
       const img = new window.Image()
-      img.onload = img.onerror = () => { done++; if (done === urls.length) setImagesLoaded(true) }
+      img.onload = img.onerror = () => { done++; if (done === urls.length) { setImagesLoaded(true); onReady?.() } }
       img.src = url
     })
   }, [flatPages])
