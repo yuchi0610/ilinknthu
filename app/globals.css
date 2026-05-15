@@ -25,6 +25,12 @@ body {
   font-family: Arial, Helvetica, sans-serif;
 }
 
+@keyframes flashAnim {
+  0%   { opacity: 0; }
+  25%  { opacity: 1; }
+  100% { opacity: 0; }
+}
+
 @keyframes filmJitter {
   0%   { transform: translate(0,      0)     scale(1); }
   25%  { transform: translate(-0.5px, 0.4px) scale(1.002); }

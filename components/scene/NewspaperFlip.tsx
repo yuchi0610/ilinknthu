@@ -68,12 +68,13 @@ export default function NewspaperFlip({ items, onFinish }: Props) {
   const bookRef = useRef<{ pageFlip: () => { flipNext: (c?: string) => void; flipPrev: (c?: string) => void; getCurrentPageIndex: () => number } }>(null)
   const [currentIdx, setCurrentIdx] = useState(0)
   const [ready, setReady] = useState(false)
+  const [isFinished, setIsFinished] = useState(false)
+  const [flashing, setFlashing] = useState(false)
   const [imagesLoaded, setImagesLoaded] = useState(false)
   const touchStartX = useRef(0)
   const touchStartY = useRef(0)
   const isFlippingRef = useRef(false)
   const autoTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
-  const autoDelayRef = useRef(300)
   const onFinishRef = useRef(onFinish)
   useEffect(() => { onFinishRef.current = onFinish }, [onFinish])
 
@@ -93,14 +94,18 @@ export default function NewspaperFlip({ items, onFinish }: Props) {
   const isAuto = !!currentAutoRange
   const isLast = currentIdx >= flatPages.length - 1
 
-  // Accelerating auto-flip: each page halves the delay (min 40 ms), matching reference
+  function triggerFlashFinish() {
+    setFlashing(true)
+    setTimeout(() => onFinishRef.current(), 700)
+  }
+
+  // Fixed-interval auto-flip (no acceleration)
   useEffect(() => {
     if (autoTimerRef.current) { clearTimeout(autoTimerRef.current); autoTimerRef.current = null }
-    if (!ready || !currentAutoRange) { autoDelayRef.current = 300; return }
+    if (!ready || !currentAutoRange) return
 
-    autoDelayRef.current = 300
     let cancelled = false
-    const range = currentAutoRange  // capture so TS knows it's non-null inside async callbacks
+    const range = currentAutoRange
 
     function scheduleTick() {
       autoTimerRef.current = setTimeout(() => {
@@ -111,18 +116,17 @@ export default function NewspaperFlip({ items, onFinish }: Props) {
 
         if (idx >= range.end) {
           if (idx >= flatPages.length - 1) {
-            onFinishRef.current()
+            setIsFinished(true)  // last page — wait for tap
           } else {
-            // flip once more into the next manual page
+            // flip into the next manual page
             setTimeout(() => { if (!cancelled) bookRef.current?.pageFlip()?.flipNext('bottom') }, 300)
           }
           return
         }
 
         pf.flipNext('bottom')
-        autoDelayRef.current = Math.max(40, autoDelayRef.current * 0.7)
         scheduleTick()
-      }, autoDelayRef.current)
+      }, range.interval ?? 1800)
     }
 
     scheduleTick()
@@ -134,12 +138,10 @@ export default function NewspaperFlip({ items, onFinish }: Props) {
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [ready, currentAutoRange?.start])
 
-  // Auto-advance on last manual page
+  // Show tap prompt on last manual page
   useEffect(() => {
     if (!ready || !isLast || isAuto) return
-    const t = setTimeout(() => onFinishRef.current(), 1000)
-    return () => clearTimeout(t)
-  // eslint-disable-next-line react-hooks/exhaustive-deps
+    setIsFinished(true)
   }, [ready, isLast, isAuto])
 
   // Manual swipe — StPageFlip mouse events always off; we handle touch ourselves
@@ -149,6 +151,7 @@ export default function NewspaperFlip({ items, onFinish }: Props) {
   }
 
   function handleTouchEnd(e: React.TouchEvent) {
+    if (isFinished) { triggerFlashFinish(); return }
     if (isAuto || isFlippingRef.current) return
     const dx = e.changedTouches[0].clientX - touchStartX.current
     const dy = Math.abs(e.changedTouches[0].clientY - touchStartY.current)
@@ -158,6 +161,10 @@ export default function NewspaperFlip({ items, onFinish }: Props) {
     isFlippingRef.current = true
     if (dx < 0) pf.flipNext('bottom')
     else pf.flipPrev('bottom')
+  }
+
+  function handleClick() {
+    if (isFinished) triggerFlashFinish()
   }
 
   if (!flatPages.length) {
@@ -178,9 +185,10 @@ export default function NewspaperFlip({ items, onFinish }: Props) {
 
   return (
     <div
-      className="min-h-dvh bg-zinc-900 flex flex-col items-center justify-center select-none overflow-hidden"
+      className="min-h-dvh bg-zinc-900 flex flex-col items-center justify-center select-none overflow-hidden relative"
       onTouchStart={handleTouchStart}
       onTouchEnd={handleTouchEnd}
+      onClick={handleClick}
     >
       <HTMLFlipBook
         ref={bookRef}
@@ -216,6 +224,17 @@ export default function NewspaperFlip({ items, onFinish }: Props) {
         ))}
       </HTMLFlipBook>
 
+      {isFinished && (
+        <div className="absolute inset-0 flex items-end justify-center pb-16 pointer-events-none z-10">
+          <p className="text-white/50 text-sm tracking-widest animate-pulse">點擊繼續</p>
+        </div>
+      )}
+      {flashing && (
+        <div
+          className="fixed inset-0 bg-white pointer-events-none z-[9999]"
+          style={{ animation: 'flashAnim 1.2s cubic-bezier(0.23,1,0.32,1) forwards' }}
+        />
+      )}
     </div>
   )
 }
