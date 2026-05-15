@@ -350,92 +350,133 @@ function AnimationForm({ config, onChange, onPickMedia }: FormProps) {
   )
 }
 
+type NItem = Record<string, unknown>
+
 function NewspaperForm({ config, onChange, onPickMedia }: FormProps) {
-  const pages = (config.pages as Array<Record<string, unknown>>) ?? []
-  const autoFlip = !!(config.auto_flip as boolean)
-  const autoFlipInterval = (config.auto_flip_interval as number) ?? 1800
+  const items = (config.pages as NItem[]) ?? []
 
-  function replacePage(i: number, page: Record<string, unknown>) {
-    onChange({ ...config, pages: pages.map((p, idx) => idx === i ? page : p) })
+  function setItems(next: NItem[]) { onChange({ ...config, pages: next }) }
+  function replaceItem(i: number, item: NItem) { setItems(items.map((x, idx) => idx === i ? item : x)) }
+  function removeItem(i: number) { setItems(items.filter((_, idx) => idx !== i)) }
+  function insertAt(i: number, newItems: NItem[]) {
+    const next = [...items]; next.splice(i, 0, ...newItems); setItems(next)
   }
 
-  function insertPages(atIndex: number, newPages: Array<Record<string, unknown>>) {
-    const next = [...pages]
-    next.splice(atIndex, 0, ...newPages)
-    onChange({ ...config, pages: next })
+  // Insert single manual pages
+  function insertPages(atIndex: number) {
+    onPickMedia(
+      url => insertAt(atIndex, [{ image_url: url }]),
+      true,
+      urls => insertAt(atIndex, urls.map(url => ({ image_url: url })))
+    )
   }
 
-  function openBulkPicker(atIndex: number) {
-    onPickMedia((url: string) => {
-      // single-select fallback (won't be used in bulk mode)
-      insertPages(atIndex, [{ image_url: url }])
-    }, true, (urls: string[]) => {
-      insertPages(atIndex, urls.map(url => ({ image_url: url })))
-    })
+  // Insert an auto-flip group
+  function insertAutoGroup(atIndex: number) {
+    onPickMedia(
+      url => insertAt(atIndex, [{ kind: 'auto', images: [url], interval: 1800 }]),
+      true,
+      urls => insertAt(atIndex, [{ kind: 'auto', images: urls, interval: 1800 }])
+    )
+  }
+
+  // Add more images to existing auto group
+  function addImagesToAuto(i: number, item: NItem) {
+    onPickMedia(
+      url => replaceItem(i, { ...item, images: [...(item.images as string[]), url] }),
+      true,
+      urls => replaceItem(i, { ...item, images: [...(item.images as string[]), ...urls] })
+    )
   }
 
   return (
-    <div className="space-y-3">
-      <p className="text-xs text-stone-400">每頁放一張圖片，左滑翻頁。</p>
+    <div className="space-y-1">
+      <p className="text-xs text-stone-400 mb-3">手動翻頁為主，可在任意位置插入自動翻頁片段。</p>
 
-      {/* Auto-flip controls */}
-      <div className="border border-stone-100 rounded-xl p-3 bg-stone-50 space-y-3">
-        <Toggle label="自動翻頁" value={autoFlip} onChange={v => onChange({ ...config, auto_flip: v })} />
-        {autoFlip && (
-          <Field label={`翻頁間隔：${(autoFlipInterval / 1000).toFixed(1)} 秒`}>
-            <input
-              type="range" min={600} max={5000} step={200}
-              value={autoFlipInterval}
-              onChange={e => onChange({ ...config, auto_flip_interval: Number(e.target.value) })}
-              className="w-full accent-stone-700"
-            />
-          </Field>
-        )}
-      </div>
+      <InsertBar onInsertPage={() => insertPages(0)} onInsertAuto={() => insertAutoGroup(0)} />
 
-      {/* Insert at top */}
-      <InsertBar onInsert={() => openBulkPicker(0)} />
-
-      {pages.map((page, i) => (
+      {items.map((item, i) => (
         <div key={i}>
-          <div className="border border-stone-100 rounded-xl p-3 bg-stone-50 space-y-2.5">
-            <div className="flex justify-between items-center">
-              <span className="text-xs font-semibold text-stone-500">第 {i + 1} 頁</span>
-              <button onClick={() => onChange({ ...config, pages: pages.filter((_, idx) => idx !== i) })} className="text-xs text-stone-300 hover:text-red-400">刪除</button>
+          {item.kind === 'auto' ? (
+            // ── 自動翻頁片段 ──
+            <div className="border border-amber-200 rounded-xl p-3 bg-amber-50 space-y-2.5">
+              <div className="flex justify-between items-center">
+                <span className="text-xs font-semibold text-amber-700">⚡ 自動翻頁片段（{(item.images as string[]).length} 張）</span>
+                <button onClick={() => removeItem(i)} className="text-xs text-stone-300 hover:text-red-400">刪除</button>
+              </div>
+
+              {/* Image strip */}
+              <div className="flex gap-1.5 flex-wrap">
+                {(item.images as string[]).map((url, j) => (
+                  <div key={j} className="relative group w-12 h-12 rounded-lg overflow-hidden border border-amber-200">
+                    <img src={url} className="w-full h-full object-cover" alt="" />
+                    <button
+                      onClick={() => replaceItem(i, { ...item, images: (item.images as string[]).filter((_, k) => k !== j) })}
+                      className="absolute inset-0 bg-black/0 group-hover:bg-black/40 transition-colors flex items-center justify-center text-white opacity-0 group-hover:opacity-100 text-xs"
+                    >✕</button>
+                  </div>
+                ))}
+                <button
+                  onClick={() => addImagesToAuto(i, item)}
+                  className="w-12 h-12 rounded-lg border border-dashed border-amber-300 hover:border-amber-500 text-amber-400 hover:text-amber-600 text-lg flex items-center justify-center transition-colors"
+                >+</button>
+              </div>
+
+              <Field label={`翻頁間隔：${((item.interval as number ?? 1800) / 1000).toFixed(1)} 秒`}>
+                <input
+                  type="range" min={400} max={5000} step={200}
+                  value={(item.interval as number) ?? 1800}
+                  onChange={e => replaceItem(i, { ...item, interval: Number(e.target.value) })}
+                  className="w-full accent-amber-600"
+                />
+              </Field>
             </div>
-            <Field label="圖片">
-              <MediaButton value={(page.image_url as string) ?? ''} onChange={v => replacePage(i, { ...page, image_url: v })} onPickMedia={() => onPickMedia(v => replacePage(i, { ...page, image_url: v }))} />
-            </Field>
-            {!!(page.image_url as string) && (
-              <ImageAdjust config={page} onChange={p => replacePage(i, p)} prefix="image" />
-            )}
-          </div>
-          {/* Insert after each page */}
-          <InsertBar onInsert={() => openBulkPicker(i + 1)} />
+          ) : (
+            // ── 手動翻頁 ──
+            <div className="border border-stone-100 rounded-xl p-3 bg-stone-50 space-y-2.5">
+              <div className="flex justify-between items-center">
+                <span className="text-xs font-semibold text-stone-500">第 {i + 1} 頁</span>
+                <button onClick={() => removeItem(i)} className="text-xs text-stone-300 hover:text-red-400">刪除</button>
+              </div>
+              <Field label="圖片">
+                <MediaButton
+                  value={(item.image_url as string) ?? ''}
+                  onChange={v => replaceItem(i, { ...item, image_url: v })}
+                  onPickMedia={() => onPickMedia(v => replaceItem(i, { ...item, image_url: v }))}
+                />
+              </Field>
+              {!!(item.image_url as string) && (
+                <ImageAdjust config={item} onChange={p => replaceItem(i, p)} prefix="image" />
+              )}
+            </div>
+          )}
+
+          <InsertBar onInsertPage={() => insertPages(i + 1)} onInsertAuto={() => insertAutoGroup(i + 1)} />
         </div>
       ))}
 
-      {pages.length === 0 && (
-        <button
-          onClick={() => openBulkPicker(0)}
-          className="w-full border border-dashed border-stone-300 hover:border-stone-500 text-stone-400 hover:text-stone-600 text-sm py-2.5 rounded-xl transition-colors"
-        >
-          + 新增頁面
-        </button>
+      {items.length === 0 && (
+        <div className="text-center py-8 text-stone-400 text-xs">點下方按鈕新增頁面</div>
       )}
     </div>
   )
 }
 
-function InsertBar({ onInsert }: { onInsert: () => void }) {
+function InsertBar({ onInsertPage, onInsertAuto }: { onInsertPage: () => void; onInsertAuto: () => void }) {
   return (
-    <div className="flex items-center gap-2 py-1">
+    <div className="flex items-center gap-1.5 py-1">
       <div className="flex-1 h-px bg-stone-100" />
       <button
-        onClick={onInsert}
-        className="text-[10px] text-stone-400 hover:text-stone-700 border border-dashed border-stone-200 hover:border-stone-400 px-2.5 py-0.5 rounded-full transition-colors flex-shrink-0"
+        onClick={onInsertPage}
+        className="text-[10px] text-stone-400 hover:text-stone-700 border border-dashed border-stone-200 hover:border-stone-400 px-2 py-0.5 rounded-full transition-colors flex-shrink-0"
       >
-        + 在此插入圖片
+        + 頁面
+      </button>
+      <button
+        onClick={onInsertAuto}
+        className="text-[10px] text-amber-500 hover:text-amber-700 border border-dashed border-amber-200 hover:border-amber-400 px-2 py-0.5 rounded-full transition-colors flex-shrink-0"
+      >
+        ⚡ 自動翻頁
       </button>
       <div className="flex-1 h-px bg-stone-100" />
     </div>

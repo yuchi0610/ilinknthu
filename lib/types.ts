@@ -19,17 +19,29 @@ export interface AnimationConfig {
   video_fit?: 'contain' | 'cover'
 }
 
-export interface NewspaperPage {
+// A regular manually-flipped page
+export interface NewspaperPageItem {
+  kind?: 'page'       // default (backwards compatible)
   image_url: string
   image_x?: number    // 0–100, default 50
   image_y?: number    // 0–100, default 50
   image_zoom?: number // 80–200, default 100 (= cover)
 }
 
+// An auto-flip segment: multiple images flip automatically in sequence
+export interface NewspaperAutoItem {
+  kind: 'auto'
+  images: string[]    // image URLs
+  interval?: number   // ms between flips, default 1800
+}
+
+export type NewspaperItem = NewspaperPageItem | NewspaperAutoItem
+
+// Legacy alias
+export type NewspaperPage = NewspaperPageItem
+
 export interface NewspaperConfig {
-  pages: NewspaperPage[]
-  auto_flip?: boolean          // auto-advance through pages
-  auto_flip_interval?: number  // ms between flips, default 1800
+  pages: NewspaperItem[]
 }
 
 export interface DialogLine {

@@ -1,8 +1,8 @@
 'use client'
 
-import { useRef, useState, useEffect, forwardRef } from 'react'
+import { useRef, useState, useEffect, useMemo, forwardRef } from 'react'
 import HTMLFlipBook from 'react-pageflip'
-import type { NewspaperConfig, NewspaperPage } from '@/lib/types'
+import type { NewspaperItem } from '@/lib/types'
 
 function bgCss(url: string, x = 50, y = 50, zoom = 100): React.CSSProperties {
   return {
@@ -12,7 +12,37 @@ function bgCss(url: string, x = 50, y = 50, zoom = 100): React.CSSProperties {
   }
 }
 
-const Page = forwardRef<HTMLDivElement, { page: NewspaperPage }>(
+interface FlatPage {
+  image_url: string
+  image_x?: number
+  image_y?: number
+  image_zoom?: number
+}
+
+interface AutoRange {
+  start: number   // inclusive flat index
+  end: number     // inclusive flat index
+  interval: number
+}
+
+function flattenItems(items: NewspaperItem[]): { flatPages: FlatPage[]; autoRanges: AutoRange[] } {
+  const flatPages: FlatPage[] = []
+  const autoRanges: AutoRange[] = []
+
+  for (const item of items) {
+    if (item.kind === 'auto') {
+      const start = flatPages.length
+      for (const url of item.images) flatPages.push({ image_url: url })
+      if (item.images.length > 0) autoRanges.push({ start, end: flatPages.length - 1, interval: item.interval ?? 1800 })
+    } else {
+      flatPages.push({ image_url: item.image_url, image_x: item.image_x, image_y: item.image_y, image_zoom: item.image_zoom })
+    }
+  }
+
+  return { flatPages, autoRanges }
+}
+
+const Page = forwardRef<HTMLDivElement, { page: FlatPage }>(
   function Page({ page }, ref) {
     return (
       <div ref={ref} className="w-full h-full overflow-hidden">
@@ -26,37 +56,77 @@ const Page = forwardRef<HTMLDivElement, { page: NewspaperPage }>(
 )
 
 interface Props {
-  pages: NewspaperPage[]
+  items: NewspaperItem[]
   onFinish: () => void
-  autoFlip?: boolean
-  autoFlipInterval?: number
 }
 
-export default function NewspaperFlip({ pages, onFinish, autoFlip = false, autoFlipInterval = 1800 }: Props) {
-  const bookRef = useRef<{ pageFlip: () => { flipNext: (c?: string) => void; getCurrentPageIndex: () => number } }>(null)
-  const [currentPage, setCurrentPage] = useState(0)
-  const [ready, setReady] = useState(false)
-  const isLast = currentPage >= pages.length - 1
+export default function NewspaperFlip({ items, onFinish }: Props) {
+  const { flatPages, autoRanges } = useMemo(() => flattenItems(items), [items])
 
-  // Auto-flip: after init, schedule repeated flipNext calls
+  const bookRef = useRef<{ pageFlip: () => { flipNext: (c?: string) => void; flipPrev: (c?: string) => void; getCurrentPageIndex: () => number } }>(null)
+  const [currentIdx, setCurrentIdx] = useState(0)
+  const [ready, setReady] = useState(false)
+  const touchStartX = useRef(0)
+  const touchStartY = useRef(0)
+  const autoTimerRef = useRef<ReturnType<typeof setInterval> | null>(null)
+
+  const currentAutoRange = autoRanges.find(r => currentIdx >= r.start && currentIdx <= r.end) ?? null
+  const isAuto = !!currentAutoRange
+  const isLast = currentIdx >= flatPages.length - 1
+
+  // Auto-flip logic when inside an auto range
   useEffect(() => {
-    if (!autoFlip || !ready) return
-    const timer = setInterval(() => {
+    if (autoTimerRef.current) { clearInterval(autoTimerRef.current); autoTimerRef.current = null }
+    if (!ready || !currentAutoRange) return
+
+    autoTimerRef.current = setInterval(() => {
       const pf = bookRef.current?.pageFlip()
       if (!pf) return
       const idx = pf.getCurrentPageIndex()
-      if (idx >= pages.length - 1) {
-        clearInterval(timer)
-        setTimeout(onFinish, autoFlipInterval * 0.4)
+      if (idx >= currentAutoRange.end) {
+        clearInterval(autoTimerRef.current!); autoTimerRef.current = null
+        // If it's also the very last page, finish the scene
+        if (idx >= flatPages.length - 1) setTimeout(onFinish, currentAutoRange.interval * 0.4)
       } else {
         pf.flipNext('bottom')
       }
-    }, autoFlipInterval)
-    return () => clearInterval(timer)
-  }, [autoFlip, ready, autoFlipInterval, pages.length, onFinish])
+    }, currentAutoRange.interval)
+
+    return () => { if (autoTimerRef.current) { clearInterval(autoTimerRef.current); autoTimerRef.current = null } }
+  }, [ready, currentAutoRange?.start, currentAutoRange?.interval])
+
+  // Manual swipe — only active when not in auto range
+  function handleTouchStart(e: React.TouchEvent) {
+    touchStartX.current = e.touches[0].clientX
+    touchStartY.current = e.touches[0].clientY
+  }
+
+  function handleTouchEnd(e: React.TouchEvent) {
+    if (isAuto) return
+    const dx = e.changedTouches[0].clientX - touchStartX.current
+    const dy = Math.abs(e.changedTouches[0].clientY - touchStartY.current)
+    if (Math.abs(dx) < 40 || dy > Math.abs(dx)) return
+    const pf = bookRef.current?.pageFlip()
+    if (!pf) return
+    if (dx < 0) pf.flipNext('bottom')
+    else pf.flipPrev('bottom')
+  }
+
+  if (!flatPages.length) {
+    return (
+      <div className="min-h-screen bg-black text-white flex flex-col items-center justify-center gap-6">
+        <p className="text-zinc-500 text-sm">尚未設定頁面</p>
+        <button onClick={onFinish} className="border border-white/30 text-white text-sm tracking-widest px-10 py-4">繼 續 →</button>
+      </div>
+    )
+  }
 
   return (
-    <div className="min-h-screen bg-zinc-900 flex flex-col items-center justify-center select-none overflow-hidden">
+    <div
+      className="min-h-screen bg-zinc-900 flex flex-col items-center justify-center select-none overflow-hidden"
+      onTouchStart={handleTouchStart}
+      onTouchEnd={handleTouchEnd}
+    >
       <HTMLFlipBook
         ref={bookRef}
         className=""
@@ -78,32 +148,40 @@ export default function NewspaperFlip({ pages, onFinish, autoFlip = false, autoF
         showCover={false}
         mobileScrollSupport={false}
         clickEventForward={false}
-        useMouseEvents={!autoFlip}
+        useMouseEvents={!isAuto}
         swipeDistance={30}
-        showPageCorners={!autoFlip}
-        disableFlipByClick={autoFlip}
-        onFlip={(e: { data: number }) => setCurrentPage(e.data)}
+        showPageCorners={!isAuto}
+        disableFlipByClick={isAuto}
+        onFlip={(e: { data: number }) => setCurrentIdx(e.data)}
         onInit={() => setReady(true)}
         renderOnlyPageLengthChange={false}
       >
-        {pages.map((page, i) => (
+        {flatPages.map((page, i) => (
           <Page key={i} page={page} />
         ))}
       </HTMLFlipBook>
 
-      {pages.length > 1 && (
-        <div className="flex justify-center gap-1.5 mt-4">
-          {pages.map((_, i) => (
-            <span
-              key={i}
-              className={`w-1.5 h-1.5 rounded-full transition-colors ${i === currentPage ? 'bg-white' : 'bg-white/30'}`}
-            />
-          ))}
+      {/* Progress dots — only show manual pages */}
+      {flatPages.length > 1 && (
+        <div className="flex justify-center gap-1 mt-4 flex-wrap max-w-xs">
+          {flatPages.map((_, i) => {
+            const inAuto = autoRanges.some(r => i >= r.start && i <= r.end)
+            return (
+              <span
+                key={i}
+                className={`rounded-full transition-colors ${
+                  inAuto
+                    ? (i === currentIdx ? 'w-3 h-1.5 bg-yellow-400' : 'w-3 h-1.5 bg-white/20')
+                    : (i === currentIdx ? 'w-1.5 h-1.5 bg-white' : 'w-1.5 h-1.5 bg-white/30')
+                }`}
+              />
+            )
+          })}
         </div>
       )}
 
-      {/* Manual mode: show button on last page */}
-      {!autoFlip && isLast && (
+      {/* Finish button on last manual page */}
+      {!isAuto && isLast && (
         <button
           onClick={onFinish}
           className="mt-5 border border-white/30 hover:border-white/60 text-white text-sm tracking-widest px-10 py-4 transition-colors"

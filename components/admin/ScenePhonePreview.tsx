@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useRef } from 'react'
 import dynamic from 'next/dynamic'
-import type { Scene, DialogConfig, AnimationConfig, NewspaperConfig, TextConfig, SignatureConfig, GameConfig } from '@/lib/types'
+import type { Scene, DialogConfig, AnimationConfig, NewspaperConfig, NewspaperItem, TextConfig, SignatureConfig, GameConfig } from '@/lib/types'
 
 function bgCss(url: string, x = 50, y = 50, zoom = 100): React.CSSProperties {
   return {
@@ -177,38 +177,54 @@ function MiniDialogPreview({ config }: { config: DialogConfig }) {
 }
 
 // ── 互動報紙預覽（滑動翻頁） ──────────────────────────────────────
-function MiniNewspaperPreview({ config }: { config: NewspaperConfig }) {
-  const pages = config.pages ?? []
-  const autoFlip = !!config.auto_flip
-  const interval = config.auto_flip_interval ?? 1800
+// Flatten NewspaperItem[] into a simple image list for mini preview
+function flatForPreview(items: NewspaperItem[]): Array<{ url: string; isAuto: boolean; interval: number }> {
+  const result: Array<{ url: string; isAuto: boolean; interval: number }> = []
+  for (const item of items) {
+    if (item.kind === 'auto') {
+      for (const url of item.images) result.push({ url, isAuto: true, interval: item.interval ?? 1800 })
+    } else {
+      result.push({ url: item.image_url, isAuto: false, interval: 0 })
+    }
+  }
+  return result
+}
 
+function MiniNewspaperPreview({ config }: { config: NewspaperConfig }) {
+  const flat = flatForPreview(config.pages ?? [])
   const [index, setIndex] = useState(0)
   const [flipAnim, setFlipAnim] = useState<{ fromIdx: number; dir: 'fwd' | 'back' } | null>(null)
   const dragStartX = useRef<number | null>(null)
+  const autoTimerRef = useRef<ReturnType<typeof setInterval> | null>(null)
 
-  // Auto-flip in preview
+  const currentIsAuto = flat[index]?.isAuto ?? false
+
+  // Start auto-flip when entering an auto range
   useEffect(() => {
-    if (!autoFlip || !pages.length) return
-    const timer = setInterval(() => {
+    if (autoTimerRef.current) { clearInterval(autoTimerRef.current); autoTimerRef.current = null }
+    if (!currentIsAuto) return
+    const interval = flat[index]?.interval ?? 1800
+    autoTimerRef.current = setInterval(() => {
       setIndex(prev => {
         const next = prev + 1
-        if (next >= pages.length) { clearInterval(timer); return prev }
+        if (next >= flat.length || !flat[next]?.isAuto) { clearInterval(autoTimerRef.current!); autoTimerRef.current = null }
+        if (next >= flat.length) return prev
         setFlipAnim({ fromIdx: prev, dir: 'fwd' })
         setTimeout(() => setFlipAnim(null), 780)
         return next
       })
     }, interval)
-    return () => clearInterval(timer)
-  }, [autoFlip, interval, pages.length])
+    return () => { if (autoTimerRef.current) clearInterval(autoTimerRef.current) }
+  }, [currentIsAuto, index])
 
-  if (!pages.length) {
+  if (!flat.length) {
     return <div className="w-full h-full bg-stone-100 flex items-center justify-center"><p className="text-[8px] text-stone-400">尚未新增頁面</p></div>
   }
 
   function advance(dir: 'fwd' | 'back') {
-    if (flipAnim || autoFlip) return
+    if (flipAnim || currentIsAuto) return
     const next = index + (dir === 'fwd' ? 1 : -1)
-    if (next < 0 || next >= pages.length) return
+    if (next < 0 || next >= flat.length) return
     setFlipAnim({ fromIdx: index, dir })
     setIndex(next)
     setTimeout(() => setFlipAnim(null), 780)
@@ -227,8 +243,8 @@ function MiniNewspaperPreview({ config }: { config: NewspaperConfig }) {
     }
   }
 
-  const page = pages[index]
-  const fromPage = flipAnim ? pages[flipAnim.fromIdx] : null
+  const page = flat[index]
+  const fromPage = flipAnim ? flat[flipAnim.fromIdx] : null
 
   return (
     <div
@@ -241,15 +257,13 @@ function MiniNewspaperPreview({ config }: { config: NewspaperConfig }) {
     >
       <style>{MINI_NW_CSS}</style>
 
-      {/* Background: current page */}
       <div className="absolute inset-0">
-        {page?.image_url
-          ? <div className="w-full h-full" style={bgCss(page.image_url, page.image_x, page.image_y, page.image_zoom)} />
+        {page?.url
+          ? <div className="w-full h-full" style={{ backgroundImage: `url(${page.url})`, backgroundSize: 'cover', backgroundPosition: 'center' }} />
           : <div className="w-full h-full flex items-center justify-center"><p className="text-[8px] text-stone-400">未設定圖片</p></div>
         }
       </div>
 
-      {/* Foreground: flipping-away page */}
       {flipAnim && fromPage && (
         <div
           className="absolute inset-0"
@@ -260,36 +274,26 @@ function MiniNewspaperPreview({ config }: { config: NewspaperConfig }) {
           }}
         >
           <div className="absolute inset-0" style={{ backfaceVisibility: 'hidden' }}>
-            {fromPage.image_url
-              ? <div className="w-full h-full" style={bgCss(fromPage.image_url, fromPage.image_x, fromPage.image_y, fromPage.image_zoom)} />
+            {fromPage.url
+              ? <div className="w-full h-full" style={{ backgroundImage: `url(${fromPage.url})`, backgroundSize: 'cover', backgroundPosition: 'center' }} />
               : <div className="w-full h-full bg-stone-200" />
             }
-            <div
-              className="absolute inset-y-0 w-1/4 pointer-events-none"
-              style={{
-                [flipAnim.dir === 'fwd' ? 'right' : 'left']: 0,
-                background: flipAnim.dir === 'fwd'
-                  ? 'linear-gradient(to left, rgba(0,0,0,0.18) 0%, transparent 100%)'
-                  : 'linear-gradient(to right, rgba(0,0,0,0.18) 0%, transparent 100%)',
-              }}
-            />
+            <div className="absolute inset-y-0 w-1/4 pointer-events-none" style={{ [flipAnim.dir === 'fwd' ? 'right' : 'left']: 0, background: flipAnim.dir === 'fwd' ? 'linear-gradient(to left, rgba(0,0,0,0.18) 0%, transparent 100%)' : 'linear-gradient(to right, rgba(0,0,0,0.18) 0%, transparent 100%)' }} />
           </div>
           <div className="absolute inset-0" style={{ transform: 'rotateY(180deg)', backfaceVisibility: 'hidden', backgroundColor: '#f4f2ed' }} />
         </div>
       )}
 
-      {pages.length > 1 && (
-        <div className="absolute bottom-2 left-0 right-0 flex justify-center gap-1 pointer-events-none">
-          {pages.map((_, i) => (
-            <span key={i} className={`w-1 h-1 rounded-full ${i === index ? 'bg-white shadow' : 'bg-white/40'}`} />
+      {flat.length > 1 && (
+        <div className="absolute bottom-2 left-0 right-0 flex justify-center gap-1 pointer-events-none flex-wrap px-2">
+          {flat.map((f, i) => (
+            <span key={i} className={`rounded-full ${f.isAuto ? (i === index ? 'w-2 h-1 bg-yellow-400' : 'w-2 h-1 bg-white/30') : (i === index ? 'w-1 h-1 bg-white shadow' : 'w-1 h-1 bg-white/40')}`} />
           ))}
         </div>
       )}
 
-      {autoFlip && (
-        <div className="absolute top-2 right-2 bg-black/50 text-white text-[8px] px-1.5 py-0.5 rounded pointer-events-none tracking-wide">
-          自動翻頁
-        </div>
+      {currentIsAuto && (
+        <div className="absolute top-2 right-2 bg-amber-500/80 text-white text-[8px] px-1.5 py-0.5 rounded pointer-events-none">⚡ 自動</div>
       )}
     </div>
   )
@@ -502,10 +506,11 @@ function PreviewContent({ scene, interactive }: { scene: Scene; interactive?: bo
       const c = config as unknown as NewspaperConfig
       if (interactive) return <MiniNewspaperPreview config={c} />
       const page = c.pages?.[0]
+      const thumbUrl = page && (page.kind === 'auto' ? page.images?.[0] : page.image_url)
       return (
         <div className="w-full h-full bg-stone-100 flex flex-col">
-          {page?.image_url
-            ? <img src={page.image_url} className="w-full flex-1 object-cover" alt="" />
+          {thumbUrl
+            ? <img src={thumbUrl} className="w-full flex-1 object-cover" alt="" />
             : <div className="flex-1 flex items-center justify-center"><p className="text-[8px] text-stone-400">未設定圖片</p></div>
           }
         </div>
