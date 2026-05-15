@@ -277,23 +277,11 @@ function TextScene({ scene, onFinish }: { scene: Scene; onFinish: () => void }) 
 // ── 影片場景 ─────────────────────────────────────────────────────
 function AnimationScene({ scene, onFinish }: { scene: Scene; onFinish: () => void }) {
   const config = scene.config as AnimationConfig
-  const videoRef = useRef<HTMLVideoElement>(null)
-  const [ended, setEnded] = useState(false)
-
-  useEffect(() => {
-    if (config.auto_advance && videoRef.current) {
-      videoRef.current.onended = () => {
-        if (config.auto_advance) onFinish()
-        else setEnded(true)
-      }
-    }
-  }, [config.auto_advance, onFinish])
 
   if (!config.video_url) {
     return (
       <div className="min-h-dvh bg-black text-white flex flex-col items-center justify-center gap-6">
         <p className="text-zinc-500 text-sm">影片未設定</p>
-        <button onClick={onFinish} className={btnCls}>繼 續 →</button>
       </div>
     )
   }
@@ -301,19 +289,13 @@ function AnimationScene({ scene, onFinish }: { scene: Scene; onFinish: () => voi
   return (
     <div className="min-h-dvh bg-black flex flex-col items-center justify-center relative">
       <video
-        ref={videoRef}
         src={config.video_url}
         autoPlay={config.autoplay ?? true}
         loop={config.loop ?? false}
         playsInline
         className={`w-full max-h-screen ${config.video_fit === 'cover' ? 'object-cover h-screen' : 'object-contain'}`}
-        onEnded={() => { if (!config.auto_advance) setEnded(true) }}
+        onEnded={onFinish}
       />
-      {(ended || !config.auto_advance) && (
-        <div className="absolute bottom-10 w-full flex justify-center">
-          <button onClick={onFinish} className={btnCls}>繼 續 →</button>
-        </div>
-      )}
     </div>
   )
 }

@@ -76,6 +76,13 @@ export default function NewspaperFlip({ items, onFinish }: Props) {
   const isAuto = !!currentAutoRange
   const isLast = currentIdx >= flatPages.length - 1
 
+  // Auto-advance when reaching the last manual page
+  useEffect(() => {
+    if (!ready || !isLast || isAuto) return
+    const t = setTimeout(() => onFinishRef.current(), 1000)
+    return () => clearTimeout(t)
+  }, [ready, isLast, isAuto])
+
   // Auto-flip logic when inside an auto range
   useEffect(() => {
     if (autoTimerRef.current) { clearInterval(autoTimerRef.current); autoTimerRef.current = null }
@@ -168,35 +175,6 @@ export default function NewspaperFlip({ items, onFinish }: Props) {
           <Page key={i} page={page} />
         ))}
       </HTMLFlipBook>
-
-      {/* Progress dots — only show manual pages */}
-      {flatPages.length > 1 && (
-        <div className="flex justify-center gap-1 mt-4 flex-wrap max-w-xs">
-          {flatPages.map((_, i) => {
-            const inAuto = autoRanges.some(r => i >= r.start && i <= r.end)
-            return (
-              <span
-                key={i}
-                className={`rounded-full transition-colors ${
-                  inAuto
-                    ? (i === currentIdx ? 'w-3 h-1.5 bg-yellow-400' : 'w-3 h-1.5 bg-white/20')
-                    : (i === currentIdx ? 'w-1.5 h-1.5 bg-white' : 'w-1.5 h-1.5 bg-white/30')
-                }`}
-              />
-            )
-          })}
-        </div>
-      )}
-
-      {/* Finish button on last manual page */}
-      {!isAuto && isLast && (
-        <button
-          onClick={onFinish}
-          className="mt-5 border border-white/30 hover:border-white/60 text-white text-sm tracking-widest px-10 py-4 transition-colors"
-        >
-          繼 續 →
-        </button>
-      )}
     </div>
   )
 }
