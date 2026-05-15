@@ -348,6 +348,7 @@ function AnimationForm({ config, onChange, onPickMedia }: FormProps) {
         <Toggle label="播完自動跳下一場景" value={!!(config.auto_advance ?? true)} onChange={v => onChange({ ...config, auto_advance: v })} />
         <Toggle label="循環播放" value={!!(config.loop)} onChange={v => onChange({ ...config, loop: v })} />
         <Toggle label="塞滿螢幕（裁切橫式影片）" value={(config.video_fit as string) === 'cover'} onChange={v => onChange({ ...config, video_fit: v ? 'cover' : 'contain' })} />
+        <Toggle label="膠捲抖動效果" value={!!(config.film_jitter)} onChange={v => onChange({ ...config, film_jitter: v })} />
       </div>
     </div>
   )

@@ -277,20 +277,13 @@ function TextScene({ scene, onFinish }: { scene: Scene; onFinish: () => void }) 
 // ── 影片場景 ─────────────────────────────────────────────────────
 function AnimationScene({ scene, onFinish }: { scene: Scene; onFinish: () => void }) {
   const config = scene.config as AnimationConfig
-  const [flashing, setFlashing] = useState(false)
+  const [ended, setEnded] = useState(false)
   const [startup, setStartup] = useState(true)
-  const onFinishRef = useRef(onFinish)
-  useEffect(() => { onFinishRef.current = onFinish }, [onFinish])
 
   useEffect(() => {
     const t = setTimeout(() => setStartup(false), 1200)
     return () => clearTimeout(t)
   }, [])
-
-  function handleEnded() {
-    setFlashing(true)
-    setTimeout(() => onFinishRef.current(), 700)
-  }
 
   if (!config.video_url) {
     return (
@@ -303,7 +296,8 @@ function AnimationScene({ scene, onFinish }: { scene: Scene; onFinish: () => voi
   return (
     <div
       className="min-h-dvh bg-black relative overflow-hidden"
-      style={{ animation: 'filmJitter 0.16s steps(2, end) infinite' }}
+      style={config.film_jitter ? { animation: 'filmJitter 0.16s steps(2, end) infinite' } : undefined}
+      onClick={ended ? onFinish : undefined}
     >
       <video
         src={config.video_url}
@@ -311,7 +305,7 @@ function AnimationScene({ scene, onFinish }: { scene: Scene; onFinish: () => voi
         loop={config.loop ?? false}
         playsInline
         className={`w-full h-full absolute inset-0 ${config.video_fit === 'cover' ? 'object-cover' : 'object-contain'}`}
-        onEnded={handleEnded}
+        onEnded={() => setEnded(true)}
       />
       {startup && (
         <div
@@ -322,11 +316,10 @@ function AnimationScene({ scene, onFinish }: { scene: Scene; onFinish: () => voi
           }}
         />
       )}
-      {flashing && (
-        <div
-          className="fixed inset-0 bg-white pointer-events-none z-[9999]"
-          style={{ animation: 'flashAnim 0.8s cubic-bezier(0.23,1,0.32,1) forwards' }}
-        />
+      {ended && (
+        <div className="absolute inset-0 bg-black/50 flex items-end justify-center pb-16 z-20 cursor-pointer">
+          <p className="text-white/60 text-sm tracking-widest animate-pulse">點擊繼續</p>
+        </div>
       )}
     </div>
   )

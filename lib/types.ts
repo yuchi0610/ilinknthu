@@ -17,6 +17,7 @@ export interface AnimationConfig {
   loop: boolean
   auto_advance: boolean
   video_fit?: 'contain' | 'cover'
+  film_jitter?: boolean
 }
 
 // A regular manually-flipped page
