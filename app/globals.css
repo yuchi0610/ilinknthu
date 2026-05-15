@@ -33,8 +33,3 @@ body {
   100% { transform: translate(0,      0)     scale(1); }
 }
 
-@keyframes projectorWarmup {
-  0%   { opacity: 0.95; filter: blur(12px); }
-  40%  { opacity: 0.65; filter: blur(4px); }
-  100% { opacity: 0;    filter: blur(0); }
-}

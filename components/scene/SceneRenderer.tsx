@@ -278,12 +278,6 @@ function TextScene({ scene, onFinish }: { scene: Scene; onFinish: () => void }) 
 function AnimationScene({ scene, onFinish }: { scene: Scene; onFinish: () => void }) {
   const config = scene.config as AnimationConfig
   const [ended, setEnded] = useState(false)
-  const [startup, setStartup] = useState(true)
-
-  useEffect(() => {
-    const t = setTimeout(() => setStartup(false), 1200)
-    return () => clearTimeout(t)
-  }, [])
 
   if (!config.video_url) {
     return (
@@ -307,15 +301,6 @@ function AnimationScene({ scene, onFinish }: { scene: Scene; onFinish: () => voi
         className={`w-full h-full absolute inset-0 ${config.video_fit === 'cover' ? 'object-cover' : 'object-contain'}`}
         onEnded={() => setEnded(true)}
       />
-      {startup && (
-        <div
-          className="absolute inset-0 pointer-events-none z-10"
-          style={{
-            background: 'radial-gradient(circle at center, rgba(255,255,255,0.18) 0%, rgba(255,255,255,0.02) 48%, rgba(0,0,0,0.9) 100%)',
-            animation: 'projectorWarmup 1.2s ease-out forwards',
-          }}
-        />
-      )}
       {ended && (
         <div className="absolute inset-0 bg-black/50 flex items-end justify-center pb-16 z-20 cursor-pointer">
           <p className="text-white/60 text-sm tracking-widest animate-pulse">點擊繼續</p>
