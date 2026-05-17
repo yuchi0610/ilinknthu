@@ -4,7 +4,7 @@ import { useState, useRef, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 import dynamic from 'next/dynamic'
 import { imageBlobUrls, videoBlobUrls } from '@/lib/assetCache'
-import type { Scene, Ending, DialogConfig, AnimationConfig, NewspaperConfig, TextConfig, SignatureConfig, GameConfig } from '@/lib/types'
+import type { Scene, Ending, DialogConfig, AnimationConfig, NewspaperConfig, TextConfig, TextPage, SignatureConfig, GameConfig } from '@/lib/types'
 
 function bgCss(url: string, x = 50, y = 50, zoom = 100, bg = '#000'): React.CSSProperties {
   return {
@@ -225,16 +225,32 @@ function DialogScene({ scene, onFinish }: { scene: Scene; onFinish: () => void }
 // ── 純文字場景 ───────────────────────────────────────────────────
 function TextScene({ scene, onFinish }: { scene: Scene; onFinish: () => void }) {
   const config = scene.config as TextConfig
-  const text = config.text ?? ''
-  const opacity = (config.overlay_opacity ?? 50) / 100
+
+  const pages: TextPage[] = config.pages ?? (config.text !== undefined ? [{
+    text: config.text ?? '',
+    background_url: config.background_url,
+    background_x: config.background_x,
+    background_y: config.background_y,
+    background_zoom: config.background_zoom,
+    overlay_opacity: config.overlay_opacity,
+    font_size: config.font_size,
+    text_color: config.text_color,
+    typewriter: config.typewriter,
+    typewriter_speed: config.typewriter_speed,
+  }] : [])
+
+  const [pageIndex, setPageIndex] = useState(0)
   const [displayed, setDisplayed] = useState('')
   const [done, setDone] = useState(false)
   const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
 
-  const typewriter = config.typewriter ?? true
-  const speed = config.typewriter_speed ?? 45
+  const page = pages[pageIndex]
+  const text = page?.text ?? ''
+  const typewriter = page?.typewriter ?? true
+  const speed = page?.typewriter_speed ?? 45
 
   useEffect(() => {
+    if (timerRef.current) clearTimeout(timerRef.current)
     setDisplayed('')
     setDone(false)
     if (!typewriter || !text) {
@@ -251,29 +267,48 @@ function TextScene({ scene, onFinish }: { scene: Scene; onFinish: () => void }) 
     }
     tick()
     return () => { if (timerRef.current) clearTimeout(timerRef.current) }
-  }, [text, typewriter, speed])
+  }, [pageIndex, text, typewriter, speed])
 
   function handleTap() {
     if (!done) return
-    onFinish()
+    if (pageIndex < pages.length - 1) setPageIndex(i => i + 1)
+    else onFinish()
   }
+
+  if (!page) {
+    return (
+      <div className="min-h-dvh bg-black text-white flex items-center justify-center">
+        <p className="text-zinc-500 text-sm">尚未設定頁面</p>
+      </div>
+    )
+  }
+
+  const opacity = (page.overlay_opacity ?? 50) / 100
+  const isLast = pageIndex >= pages.length - 1
 
   return (
     <div
       className="min-h-dvh flex items-center justify-center cursor-pointer select-none relative overflow-hidden"
-      style={config.background_url
-        ? bgCss(config.background_url, config.background_x, config.background_y, config.background_zoom)
+      style={page.background_url
+        ? bgCss(page.background_url, page.background_x, page.background_y, page.background_zoom)
         : { background: '#1c1917' }
       }
       onClick={handleTap}
     >
-      {config.background_url && <div className="absolute inset-0 bg-black" style={{ opacity }} />}
+      {page.background_url && <div className="absolute inset-0 bg-black" style={{ opacity }} />}
+      {pages.length > 1 && (
+        <div className="absolute top-4 left-0 right-0 flex justify-center gap-1.5 z-10">
+          {pages.map((_, i) => (
+            <span key={i} className={`w-1.5 h-1.5 rounded-full transition-colors ${i <= pageIndex ? 'bg-white' : 'bg-white/30'}`} />
+          ))}
+        </div>
+      )}
       <div className="relative z-10 max-w-xs px-8 text-center">
-        <p className="leading-loose tracking-wide" style={{ fontSize: config.font_size ?? 16, color: config.text_color ?? '#ffffff', whiteSpace: 'pre-wrap' }}>
+        <p className="leading-loose tracking-wide" style={{ fontSize: page.font_size ?? 16, color: page.text_color ?? '#ffffff', whiteSpace: 'pre-wrap' }}>
           {displayed}
-          <span className={`inline-block w-0.5 h-5 ml-0.5 align-middle animate-pulse ${done ? 'opacity-0' : ''}`} style={{ backgroundColor: config.text_color ?? '#ffffff', opacity: 0.6 }} />
+          <span className={`inline-block w-0.5 h-5 ml-0.5 align-middle animate-pulse ${done ? 'opacity-0' : ''}`} style={{ backgroundColor: page.text_color ?? '#ffffff', opacity: 0.6 }} />
         </p>
-        {done && <p className="text-xs mt-8 tracking-widest" style={{ color: config.text_color ?? '#ffffff', opacity: 0.3 }}>點擊繼續</p>}
+        {done && <p className="text-xs mt-8 tracking-widest" style={{ color: page.text_color ?? '#ffffff', opacity: 0.3 }}>{isLast ? '點擊結束' : '點擊繼續'}</p>}
       </div>
     </div>
   )

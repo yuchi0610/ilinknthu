@@ -70,17 +70,33 @@ export interface DialogConfig {
   typewriter_speed?: number // ms per character, default 35
 }
 
-export interface TextConfig {
+export interface TextPage {
   text: string
   background_url?: string
-  background_x?: number    // 0–100, default 50
-  background_y?: number    // 0–100, default 50
-  background_zoom?: number // 80–200, default 100 (= cover)
+  background_x?: number
+  background_y?: number
+  background_zoom?: number
   overlay_opacity?: number
-  font_size?: number        // px, default 16
-  text_color?: string       // default #ffffff
-  typewriter?: boolean      // default true
-  typewriter_speed?: number // ms per character, default 45
+  font_size?: number
+  text_color?: string
+  typewriter?: boolean
+  typewriter_speed?: number
+}
+
+export interface TextConfig {
+  // Multi-page (new)
+  pages?: TextPage[]
+  // Legacy single-page fields (backward compat)
+  text?: string
+  background_url?: string
+  background_x?: number
+  background_y?: number
+  background_zoom?: number
+  overlay_opacity?: number
+  font_size?: number
+  text_color?: string
+  typewriter?: boolean
+  typewriter_speed?: number
 }
 
 export interface SignatureConfig {

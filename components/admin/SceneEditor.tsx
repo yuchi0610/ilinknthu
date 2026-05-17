@@ -4,7 +4,7 @@ import { useState } from 'react'
 import { useRouter } from 'next/navigation'
 import MediaPickerModal from './MediaPickerModal'
 import ScenePhonePreview from './ScenePhonePreview'
-import type { Scene, SceneType, DialogConfig, AnimationConfig, NewspaperConfig, TextConfig, SignatureConfig, GameConfig } from '@/lib/types'
+import type { Scene, SceneType, DialogConfig, AnimationConfig, NewspaperConfig, TextConfig, TextPage, SignatureConfig, GameConfig } from '@/lib/types'
 
 const TYPE_LABEL: Record<SceneType, string> = {
   animation: '影片',
@@ -115,16 +115,22 @@ type FormProps = {
 }
 
 // ── 各類型表單 ────────────────────────────────────────────────────
-function TextForm({ config, onChange, onPickMedia }: FormProps) {
-  const c = config as unknown as TextConfig
+function TextPageEditor({ page, pageConfig, onChange, onPickMedia }: {
+  page: number
+  pageConfig: TextPage
+  onChange: (p: TextPage) => void
+  onPickMedia: FormProps['onPickMedia']
+}) {
+  const c = pageConfig
+  const bgConfig = c as unknown as Record<string, unknown>
   return (
-    <div className="space-y-4">
+    <div className="space-y-3">
       <Field label="文字內容">
         <textarea
           value={c.text ?? ''}
-          onChange={e => onChange({ ...config, text: e.target.value })}
+          onChange={e => onChange({ ...c, text: e.target.value })}
           className={`${inputCls} resize-none`}
-          rows={5}
+          rows={4}
           placeholder="輸入要顯示的文字內容…"
         />
       </Field>
@@ -132,13 +138,13 @@ function TextForm({ config, onChange, onPickMedia }: FormProps) {
       <div className="grid grid-cols-2 gap-3">
         <Field label="字體大小（px）">
           <input type="number" min={10} max={48} value={c.font_size ?? 16}
-            onChange={e => onChange({ ...config, font_size: Number(e.target.value) })}
+            onChange={e => onChange({ ...c, font_size: Number(e.target.value) })}
             className={inputCls} />
         </Field>
         <Field label="文字顏色">
           <div className="flex items-center gap-2">
             <input type="color" value={c.text_color ?? '#ffffff'}
-              onChange={e => onChange({ ...config, text_color: e.target.value })}
+              onChange={e => onChange({ ...c, text_color: e.target.value })}
               className="w-10 h-9 rounded border border-stone-200 cursor-pointer flex-shrink-0" />
             <span className="text-xs text-stone-400 font-mono">{c.text_color ?? '#ffffff'}</span>
           </div>
@@ -146,30 +152,36 @@ function TextForm({ config, onChange, onPickMedia }: FormProps) {
       </div>
 
       <Field label="背景圖片" hint="選填">
-        <MediaButton value={c.background_url ?? ''} onChange={v => onChange({ ...config, background_url: v })} onPickMedia={() => onPickMedia(v => onChange({ ...config, background_url: v }))} />
+        <MediaButton
+          value={c.background_url ?? ''}
+          onChange={v => onChange({ ...c, background_url: v })}
+          onPickMedia={() => onPickMedia(v => onChange({ ...c, background_url: v }))}
+        />
       </Field>
       {c.background_url && (
-        <ImageAdjust config={config} onChange={onChange} />
+        <ImageAdjust
+          config={bgConfig}
+          onChange={p => onChange(p as unknown as TextPage)}
+        />
       )}
       {c.background_url && (
         <Field label={`圖片暗化程度：${c.overlay_opacity ?? 50}%`}>
           <input
             type="range" min={0} max={90} step={5}
             value={c.overlay_opacity ?? 50}
-            onChange={e => onChange({ ...config, overlay_opacity: Number(e.target.value) })}
+            onChange={e => onChange({ ...c, overlay_opacity: Number(e.target.value) })}
             className="w-full accent-stone-700"
           />
           <div className="flex justify-between text-xs text-stone-400 mt-1"><span>原圖</span><span>全黑</span></div>
         </Field>
       )}
 
-      {/* 打字機效果 */}
-      <div className="border border-stone-100 rounded-xl p-4 bg-stone-50 space-y-3">
+      <div className="border border-stone-100 rounded-xl p-3 bg-stone-50 space-y-2.5">
         <p className="text-xs font-semibold text-stone-500 uppercase tracking-widest">打字機效果</p>
-        <Toggle label="啟用打字機效果" value={c.typewriter ?? true} onChange={v => onChange({ ...config, typewriter: v })} />
+        <Toggle label="啟用打字機效果" value={c.typewriter ?? true} onChange={v => onChange({ ...c, typewriter: v })} />
         {(c.typewriter ?? true) && (
           <Field label="打字速度">
-            <select value={c.typewriter_speed ?? 45} onChange={e => onChange({ ...config, typewriter_speed: Number(e.target.value) })} className={inputCls}>
+            <select value={c.typewriter_speed ?? 45} onChange={e => onChange({ ...c, typewriter_speed: Number(e.target.value) })} className={inputCls}>
               <option value={120}>很慢</option>
               <option value={60}>慢</option>
               <option value={45}>中（預設）</option>
@@ -179,6 +191,64 @@ function TextForm({ config, onChange, onPickMedia }: FormProps) {
           </Field>
         )}
       </div>
+    </div>
+  )
+}
+
+function TextForm({ config, onChange, onPickMedia }: FormProps) {
+  const c = config as unknown as TextConfig
+
+  // Normalize legacy single-page config to pages array
+  const pages: TextPage[] = c.pages ?? (c.text !== undefined ? [{
+    text: c.text ?? '',
+    background_url: c.background_url,
+    background_x: c.background_x,
+    background_y: c.background_y,
+    background_zoom: c.background_zoom,
+    overlay_opacity: c.overlay_opacity,
+    font_size: c.font_size,
+    text_color: c.text_color,
+    typewriter: c.typewriter,
+    typewriter_speed: c.typewriter_speed,
+  }] : [])
+
+  function setPages(next: TextPage[]) {
+    onChange({ pages: next })
+  }
+
+  function updatePage(i: number, p: TextPage) {
+    setPages(pages.map((x, idx) => idx === i ? p : x))
+  }
+
+  function addPage() {
+    setPages([...pages, { text: '', typewriter: true }])
+  }
+
+  return (
+    <div className="space-y-3">
+      {pages.map((p, i) => (
+        <div key={i} className="border border-stone-100 rounded-xl p-3 bg-stone-50 space-y-2.5">
+          <div className="flex justify-between items-center">
+            <span className="text-xs font-semibold text-stone-500">頁面 {i + 1}</span>
+            <button
+              onClick={() => setPages(pages.filter((_, idx) => idx !== i))}
+              className="text-xs text-stone-300 hover:text-red-400 transition-colors"
+            >刪除</button>
+          </div>
+          <TextPageEditor page={i} pageConfig={p} onChange={p => updatePage(i, p)} onPickMedia={onPickMedia} />
+        </div>
+      ))}
+
+      {pages.length === 0 && (
+        <div className="text-center py-6 text-stone-400 text-xs">點下方按鈕新增頁面</div>
+      )}
+
+      <button
+        onClick={addPage}
+        className="w-full border border-dashed border-stone-300 hover:border-stone-500 text-stone-400 hover:text-stone-600 text-sm py-2.5 rounded-xl transition-colors"
+      >
+        + 新增頁面
+      </button>
     </div>
   )
 }

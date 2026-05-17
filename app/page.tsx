@@ -24,7 +24,11 @@ function collectAssets(scenes: Scene[]): { images: string[]; videos: string[] } 
       for (const d of cfg.dialogs ?? []) if (d.character_image_url) images.push(d.character_image_url)
     } else if (scene.type === 'text') {
       const cfg = c as TextConfig
-      if (cfg.background_url) images.push(cfg.background_url)
+      if (cfg.pages) {
+        for (const p of cfg.pages) if (p.background_url) images.push(p.background_url)
+      } else if (cfg.background_url) {
+        images.push(cfg.background_url)
+      }
     } else if (scene.type === 'signature') {
       const cfg = c as SignatureConfig
       if (cfg.background_url) images.push(cfg.background_url)
