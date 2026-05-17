@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useRef } from 'react'
 import dynamic from 'next/dynamic'
-import type { Scene, DialogConfig, AnimationConfig, NewspaperConfig, NewspaperItem, TextConfig, SignatureConfig, GameConfig } from '@/lib/types'
+import type { Scene, DialogConfig, AnimationConfig, NewspaperConfig, NewspaperItem, TextConfig, TextPage, SignatureConfig, GameConfig } from '@/lib/types'
 
 function bgCss(url: string, x = 50, y = 50, zoom = 100): React.CSSProperties {
   return {
@@ -316,17 +316,37 @@ const TEXT_REAL_W = 375
 const TEXT_SCALE = SCREEN_W / TEXT_REAL_W          // ≈ 0.544
 const TEXT_DESIGN_H = Math.round(PHONE_SCREEN_H / TEXT_SCALE)
 
+function normalizeTextPages(config: TextConfig): TextPage[] {
+  if (config.pages) return config.pages
+  if (config.text !== undefined) return [{
+    text: config.text ?? '',
+    background_url: config.background_url,
+    background_x: config.background_x,
+    background_y: config.background_y,
+    background_zoom: config.background_zoom,
+    overlay_opacity: config.overlay_opacity,
+    font_size: config.font_size,
+    text_color: config.text_color,
+    typewriter: config.typewriter,
+    typewriter_speed: config.typewriter_speed,
+  }]
+  return []
+}
+
 function MiniTextPreview({ config }: { config: TextConfig }) {
-  const text = config.text ?? ''
-  const typewriter = config.typewriter ?? true
-  const speed = config.typewriter_speed ?? 45
-  const opacity = (config.overlay_opacity ?? 50) / 100
+  const pages = normalizeTextPages(config)
+  const [pageIndex, setPageIndex] = useState(0)
   const [displayed, setDisplayed] = useState('')
   const [done, setDone] = useState(false)
-  const [replay, setReplay] = useState(0)
   const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
 
+  const page = pages[pageIndex]
+  const text = page?.text ?? ''
+  const typewriter = page?.typewriter ?? true
+  const speed = page?.typewriter_speed ?? 45
+
   useEffect(() => {
+    if (timerRef.current) clearTimeout(timerRef.current)
     setDisplayed('')
     setDone(false)
     if (!typewriter || !text) { setDisplayed(text); setDone(true); return }
@@ -339,16 +359,22 @@ function MiniTextPreview({ config }: { config: TextConfig }) {
     }
     tick()
     return () => { if (timerRef.current) clearTimeout(timerRef.current) }
-  }, [text, typewriter, speed, replay])
+  }, [pageIndex, text, typewriter, speed])
 
   function handleTap() {
     if (!done) return
-    setReplay(r => r + 1)
+    if (pageIndex < pages.length - 1) setPageIndex(i => i + 1)
+    else setPageIndex(0)
   }
 
-  const color = config.text_color ?? '#ffffff'
-  const bgStyle = config.background_url
-    ? bgCss(config.background_url, config.background_x, config.background_y, config.background_zoom)
+  if (!page) {
+    return <div className="w-full h-full bg-stone-900 flex items-center justify-center"><p className="text-[8px] text-stone-500">尚未新增頁面</p></div>
+  }
+
+  const opacity = (page.overlay_opacity ?? 50) / 100
+  const color = page.text_color ?? '#ffffff'
+  const bgStyle = page.background_url
+    ? bgCss(page.background_url, page.background_x, page.background_y, page.background_zoom)
     : { background: '#1c1917' }
 
   return (
@@ -357,7 +383,6 @@ function MiniTextPreview({ config }: { config: TextConfig }) {
       style={{ width: SCREEN_W, height: PHONE_SCREEN_H, overflow: 'hidden', position: 'relative' }}
       onClick={handleTap}
     >
-      {/* Scaled inner — mirrors TextScene layout exactly */}
       <div style={{
         transform: `scale(${TEXT_SCALE})`,
         transformOrigin: 'top left',
@@ -371,15 +396,22 @@ function MiniTextPreview({ config }: { config: TextConfig }) {
         justifyContent: 'center',
         ...bgStyle,
       }}>
-        {config.background_url && <div className="absolute inset-0 bg-black" style={{ opacity }} />}
+        {page.background_url && <div className="absolute inset-0 bg-black" style={{ opacity }} />}
+        {pages.length > 1 && (
+          <div className="absolute top-4 left-0 right-0 flex justify-center gap-1.5 z-10">
+            {pages.map((_, i) => (
+              <span key={i} className={`w-1.5 h-1.5 rounded-full ${i <= pageIndex ? 'bg-white' : 'bg-white/30'}`} />
+            ))}
+          </div>
+        )}
         <div className="relative z-10 max-w-xs px-8 text-center">
-          <p className="leading-loose tracking-wide" style={{ fontSize: config.font_size ?? 16, color, whiteSpace: 'pre-wrap' }}>
+          <p className="leading-loose tracking-wide" style={{ fontSize: page.font_size ?? 16, color, whiteSpace: 'pre-wrap' }}>
             {displayed || <span style={{ opacity: 0.3 }}>尚未輸入…</span>}
             {!done && displayed && (
               <span className="inline-block w-0.5 h-5 ml-0.5 align-middle animate-pulse" style={{ backgroundColor: color, opacity: 0.6 }} />
             )}
           </p>
-          {done && text && <p className="text-xs mt-8 tracking-widest" style={{ color, opacity: 0.3 }}>點擊重播 ↺</p>}
+          {done && text && <p className="text-xs mt-8 tracking-widest" style={{ color, opacity: 0.3 }}>{pageIndex < pages.length - 1 ? '點擊繼續' : '點擊重播 ↺'}</p>}
         </div>
       </div>
     </div>
@@ -529,11 +561,13 @@ function PreviewContent({ scene, interactive }: { scene: Scene; interactive?: bo
     case 'text': {
       const c = config as unknown as TextConfig
       if (interactive) return <MiniTextPreview config={c} />
-      // Static thumbnail — same CSS scale so line breaks match the real site
-      const opacity = (c.overlay_opacity ?? 50) / 100
-      const color = c.text_color ?? '#ffffff'
-      const bgStyle = c.background_url
-        ? bgCss(c.background_url, c.background_x, c.background_y, c.background_zoom)
+      // Static thumbnail — show first page
+      const pages = normalizeTextPages(c)
+      const page = pages[0]
+      const opacity = (page?.overlay_opacity ?? 50) / 100
+      const color = page?.text_color ?? '#ffffff'
+      const bgStyle = page?.background_url
+        ? bgCss(page.background_url, page.background_x, page.background_y, page.background_zoom)
         : { background: '#1c1917' }
       return (
         <div style={{ width: SCREEN_W, height: PHONE_SCREEN_H, overflow: 'hidden', position: 'relative' }}>
@@ -550,10 +584,10 @@ function PreviewContent({ scene, interactive }: { scene: Scene; interactive?: bo
             justifyContent: 'center',
             ...bgStyle,
           }}>
-            {c.background_url && <div className="absolute inset-0 bg-black" style={{ opacity }} />}
+            {page?.background_url && <div className="absolute inset-0 bg-black" style={{ opacity }} />}
             <div className="relative z-10 max-w-xs px-8 text-center">
-              <p className="leading-loose tracking-wide" style={{ fontSize: c.font_size ?? 16, color, whiteSpace: 'pre-wrap' }}>
-                {c.text || <span style={{ opacity: 0.3 }}>尚未輸入…</span>}
+              <p className="leading-loose tracking-wide" style={{ fontSize: page?.font_size ?? 16, color, whiteSpace: 'pre-wrap' }}>
+                {page?.text || <span style={{ opacity: 0.3 }}>尚未輸入…</span>}
               </p>
             </div>
           </div>
