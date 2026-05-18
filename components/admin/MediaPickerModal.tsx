@@ -15,9 +15,9 @@ function fileType(name: string): MediaFile['type'] {
   return 'other'
 }
 
-const SUPABASE_URL = process.env.NEXT_PUBLIC_SUPABASE_URL ?? 'https://uozojwiklovkckbygegp.supabase.co'
+const R2_PUBLIC_URL = process.env.NEXT_PUBLIC_R2_PUBLIC_URL ?? ''
 function publicUrl(name: string) {
-  return `${SUPABASE_URL}/storage/v1/object/public/media/${name}`
+  return `${R2_PUBLIC_URL}/${name}`
 }
 
 interface Props {
@@ -54,13 +54,13 @@ export default function MediaPickerModal({ onSelect, onSelectMultiple, onClose, 
     const filename = `${Date.now()}.${ext}`
 
     const signRes = await fetch(`/api/upload?filename=${encodeURIComponent(filename)}`)
-    const { signedUrl } = await signRes.json()
+    const { signedUrl, publicUrl: filePublicUrl } = await signRes.json()
     if (!signedUrl) { setUploadError('取得上傳連結失敗'); setUploading(false); return }
 
     const uploadRes = await fetch(signedUrl, { method: 'PUT', headers: { 'Content-Type': file.type }, body: file })
     if (!uploadRes.ok) { setUploadError('上傳失敗'); setUploading(false); return }
 
-    const url = publicUrl(filename)
+    const url = filePublicUrl ?? publicUrl(filename)
     setFiles(prev => [{ name: filename, url, type: fileType(filename) }, ...prev])
     setUploading(false)
     if (fileInputRef.current) fileInputRef.current.value = ''

@@ -1,6 +1,6 @@
 export const dynamic = 'force-dynamic'
 
-import { createClient } from '@/lib/supabase/server'
+import { d1Query, parseJsonField } from '@/lib/d1'
 import type { Session } from '@/lib/types'
 
 function formatDate(str: string) {
@@ -8,14 +8,13 @@ function formatDate(str: string) {
 }
 
 export default async function SessionsPage() {
-  const supabase = await createClient()
-  const { data: sessions } = await supabase
-    .from('sessions')
-    .select('*')
-    .order('started_at', { ascending: false })
-    .limit(100)
-
-  const list = (sessions ?? []) as Session[]
+  const rows = await d1Query<Record<string, unknown>>(
+    'SELECT * FROM sessions ORDER BY started_at DESC LIMIT 100'
+  )
+  const list: Session[] = rows.map(row => ({
+    ...(row as unknown as Session),
+    scores: parseJsonField<Record<string, number>>(row, 'scores'),
+  }))
 
   const stats = {
     total: list.length,
@@ -34,7 +33,6 @@ export default async function SessionsPage() {
         <p className="text-xs text-zinc-500 mt-0.5">最近 100 筆觀眾紀錄</p>
       </div>
 
-      {/* 統計摘要 */}
       <div className="grid grid-cols-4 gap-4 mb-8">
         {[
           { label: '總次數', value: stats.total },

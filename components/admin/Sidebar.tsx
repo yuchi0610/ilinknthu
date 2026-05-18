@@ -2,7 +2,6 @@
 
 import Link from 'next/link'
 import { usePathname, useRouter } from 'next/navigation'
-import { createClient } from '@/lib/supabase/client'
 
 const NAV = [
   { href: '/admin/scenes',  label: '場景管理' },
@@ -15,8 +14,7 @@ export default function Sidebar() {
   const router = useRouter()
 
   async function handleLogout() {
-    const supabase = createClient()
-    await supabase.auth.signOut()
+    await fetch('/api/auth', { method: 'DELETE' })
     router.push('/admin/login')
   }
 

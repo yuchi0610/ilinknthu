@@ -1,6 +1,6 @@
 export const dynamic = 'force-dynamic'
 
-import { createClient } from '@/lib/supabase/server'
+import { d1Query, parseJsonField } from '@/lib/d1'
 import type { Ending } from '@/lib/types'
 
 const ENDING_STYLE: Record<string, { from: string; to: string; badge: string; accent: string }> = {
@@ -12,9 +12,11 @@ const ENDING_STYLE: Record<string, { from: string; to: string; badge: string; ac
 export default async function EndingPage({ params }: { params: Promise<{ type: string }> }) {
   const { type } = await params
   const key = type.toUpperCase()
-  const supabase = await createClient()
-  const { data } = await supabase.from('endings').select('*').eq('type', key).single()
-  const ending = data as Ending | null
+  const rows = await d1Query<Record<string, unknown>>('SELECT * FROM endings WHERE type = ?', [key])
+  const row = rows[0] ?? null
+  const ending: Ending | null = row
+    ? { ...(row as unknown as Ending), config: parseJsonField(row, 'config') }
+    : null
   const s = ENDING_STYLE[key] ?? ENDING_STYLE['C']
 
   return (

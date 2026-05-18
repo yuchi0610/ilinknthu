@@ -1,38 +1,38 @@
-import { createClient } from '@supabase/supabase-js'
 import { NextRequest, NextResponse } from 'next/server'
+import { r2PresignedPut, r2List, r2Delete, r2PublicUrl } from '@/lib/r2'
 
-const SUPABASE_URL = process.env.NEXT_PUBLIC_SUPABASE_URL ?? 'https://uozojwiklovkckbygegp.supabase.co'
-const SERVICE_ROLE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY ?? 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InVvem9qd2lrbG92a2NrYnlnZWdwIiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc3ODY1Njk1OCwiZXhwIjoyMDk0MjMyOTU4fQ.SpNTXGkJxgFk5zM6DUK3OkwDLdPN5-5drqpH4csPbOc'
+// GET /api/upload?filename=xxx  → { signedUrl, publicUrl }
+// GET /api/upload               → { files }
+export async function GET(req: NextRequest) {
+  try {
+    const filename = req.nextUrl.searchParams.get('filename')
 
-function getSupabase() {
-  return createClient(SUPABASE_URL, SERVICE_ROLE_KEY)
-}
+    if (filename) {
+      const ext = filename.split('.').pop()?.toLowerCase() ?? 'bin'
+      const contentTypeMap: Record<string, string> = {
+        jpg: 'image/jpeg', jpeg: 'image/jpeg', png: 'image/png',
+        gif: 'image/gif', webp: 'image/webp', svg: 'image/svg+xml',
+        mp4: 'video/mp4', webm: 'video/webm', mov: 'video/quicktime',
+      }
+      const contentType = contentTypeMap[ext] ?? 'application/octet-stream'
+      const signedUrl = await r2PresignedPut(filename, contentType)
+      return NextResponse.json({ signedUrl, publicUrl: r2PublicUrl(filename) })
+    }
 
-// GET /api/upload?filename=xxx  → returns signed upload URL + token
-// GET /api/upload               → lists files
-export async function GET(request: NextRequest) {
-  const filename = request.nextUrl.searchParams.get('filename')
-
-  if (filename) {
-    const { data, error } = await getSupabase().storage
-      .from('media')
-      .createSignedUploadUrl(filename)
-    if (error) return NextResponse.json({ error: error.message }, { status: 500 })
-    return NextResponse.json({ signedUrl: data.signedUrl, token: data.token, path: data.path })
+    const files = await r2List()
+    return NextResponse.json({ files })
+  } catch (e) {
+    return NextResponse.json({ error: String(e) }, { status: 500 })
   }
-
-  const { data, error } = await getSupabase().storage
-    .from('media')
-    .list('', { sortBy: { column: 'created_at', order: 'desc' } })
-  if (error) return NextResponse.json({ error: error.message }, { status: 500 })
-  return NextResponse.json({ files: data ?? [] })
 }
 
-export async function DELETE(request: NextRequest) {
-  const { filename } = await request.json()
-  if (!filename) return NextResponse.json({ error: '缺少檔名' }, { status: 400 })
-
-  const { error } = await getSupabase().storage.from('media').remove([filename])
-  if (error) return NextResponse.json({ error: error.message }, { status: 500 })
-  return NextResponse.json({ ok: true })
+export async function DELETE(req: NextRequest) {
+  try {
+    const { filename } = await req.json()
+    if (!filename) return NextResponse.json({ error: '缺少檔名' }, { status: 400 })
+    await r2Delete(filename)
+    return NextResponse.json({ ok: true })
+  } catch (e) {
+    return NextResponse.json({ error: String(e) }, { status: 500 })
+  }
 }

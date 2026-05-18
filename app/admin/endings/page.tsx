@@ -1,7 +1,6 @@
 'use client'
 
 import { useState, useEffect } from 'react'
-import { createClient } from '@/lib/supabase/client'
 import MediaPickerModal from '@/components/admin/MediaPickerModal'
 import type { Ending } from '@/lib/types'
 
@@ -26,14 +25,13 @@ function UrlInput({ value, onChange, placeholder, onPick }: { value: string; onC
 }
 
 export default function EndingsPage() {
-  const supabase = createClient()
   const [endings, setEndings] = useState<Ending[]>([])
   const [saving, setSaving] = useState(false)
   const [saved, setSaved] = useState(false)
   const [pickerCb, setPickerCb] = useState<((url: string) => void) | null>(null)
 
   useEffect(() => {
-    supabase.from('endings').select('*').order('type').then(({ data }) => {
+    fetch('/api/endings').then(r => r.json()).then(({ endings: data }) => {
       if (data) setEndings(data as Ending[])
     })
   }, [])
@@ -49,7 +47,11 @@ export default function EndingsPage() {
   async function handleSave() {
     setSaving(true)
     await Promise.all(endings.map(e =>
-      supabase.from('endings').update({ label: e.label, score_min: e.score_min, score_max: e.score_max, config: e.config }).eq('id', e.id)
+      fetch('/api/endings', {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ id: e.id, label: e.label, score_min: e.score_min, score_max: e.score_max, config: e.config }),
+      })
     ))
     setSaving(false)
     setSaved(true)
