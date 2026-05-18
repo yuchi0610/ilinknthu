@@ -318,6 +318,15 @@ function TextScene({ scene, onFinish }: { scene: Scene; onFinish: () => void }) 
 function AnimationScene({ scene, onFinish }: { scene: Scene; onFinish: () => void }) {
   const config = scene.config as AnimationConfig
   const [ended, setEnded] = useState(false)
+  const [needsTap, setNeedsTap] = useState(false)
+  const [src, setSrc] = useState(() => videoBlobUrls.get(config.video_url) ?? config.video_url)
+  const videoRef = useRef<HTMLVideoElement>(null)
+
+  useEffect(() => {
+    const v = videoRef.current
+    if (!v || !(config.autoplay ?? true)) return
+    v.play().catch(() => setNeedsTap(true))
+  }, [src, config.autoplay])
 
   if (!config.video_url) {
     return (
@@ -327,23 +336,34 @@ function AnimationScene({ scene, onFinish }: { scene: Scene; onFinish: () => voi
     )
   }
 
+  function handleTap() {
+    if (ended) { onFinish(); return }
+    if (needsTap) {
+      videoRef.current?.play()
+      setNeedsTap(false)
+    }
+  }
+
   return (
     <div
       className="min-h-dvh bg-black relative overflow-hidden"
       style={config.film_jitter ? { animation: 'filmJitter 0.16s steps(2, end) infinite' } : undefined}
-      onClick={ended ? onFinish : undefined}
+      onClick={handleTap}
     >
       <video
-        src={videoBlobUrls.get(config.video_url) ?? config.video_url}
-        autoPlay={config.autoplay ?? true}
+        ref={videoRef}
+        src={src}
         loop={config.loop ?? false}
         playsInline
         className={`w-full h-full absolute inset-0 ${config.video_fit === 'cover' ? 'object-cover' : 'object-contain'}`}
-        onEnded={() => setEnded(true)}
+        onEnded={() => { setEnded(true); if (config.auto_advance) onFinish() }}
+        onError={() => { if (src !== config.video_url) setSrc(config.video_url) }}
       />
-      {ended && (
+      {(ended || needsTap) && (
         <div className="absolute inset-0 bg-black/50 flex items-end justify-center pb-16 z-20 cursor-pointer">
-          <p className="text-white/60 text-sm tracking-widest animate-pulse">點擊繼續</p>
+          <p className="text-white/60 text-sm tracking-widest animate-pulse">
+            {ended ? '點擊繼續' : '點擊播放'}
+          </p>
         </div>
       )}
     </div>
