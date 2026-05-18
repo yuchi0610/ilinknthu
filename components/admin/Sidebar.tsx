@@ -1,7 +1,7 @@
 'use client'
 
 import Link from 'next/link'
-import { usePathname, useRouter, useSearchParams } from 'next/navigation'
+import { usePathname } from 'next/navigation'
 import { useState, useEffect } from 'react'
 import { QRCodeSVG } from 'qrcode.react'
 
@@ -13,18 +13,12 @@ const NAV = [
 
 export default function Sidebar() {
   const pathname = usePathname()
-  const router = useRouter()
   const [showQR, setShowQR] = useState(false)
   const [origin, setOrigin] = useState('')
 
   useEffect(() => {
     setOrigin(window.location.origin)
   }, [])
-
-  async function handleLogout() {
-    await fetch('/api/auth', { method: 'DELETE' })
-    router.push('/admin/login')
-  }
 
   return (
     <>
@@ -59,9 +53,6 @@ export default function Sidebar() {
             className="w-full text-left block px-3 py-2 text-xs text-stone-400 hover:text-stone-600 rounded-lg hover:bg-stone-50 transition-colors"
           >
             手機掃碼預覽 ▦
-          </button>
-          <button onClick={handleLogout} className="w-full text-left block px-3 py-2 text-xs text-stone-400 hover:text-stone-600 rounded-lg hover:bg-stone-50 transition-colors">
-            登出
           </button>
         </div>
       </aside>
