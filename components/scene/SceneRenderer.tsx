@@ -3,7 +3,7 @@
 import { useState, useRef, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 import dynamic from 'next/dynamic'
-import { imageBlobUrls, videoBlobUrls } from '@/lib/assetCache'
+import { imageBlobUrls } from '@/lib/assetCache'
 import type { Scene, Ending, DialogConfig, AnimationConfig, NewspaperConfig, TextConfig, TextPage, SignatureConfig, GameConfig } from '@/lib/types'
 
 function bgCss(url: string, x = 50, y = 50, zoom = 100, bg = '#000'): React.CSSProperties {
@@ -319,7 +319,7 @@ function AnimationScene({ scene, onFinish }: { scene: Scene; onFinish: () => voi
   const config = scene.config as AnimationConfig
   const [ended, setEnded] = useState(false)
   const [needsTap, setNeedsTap] = useState(false)
-  const [src, setSrc] = useState(() => videoBlobUrls.get(config.video_url) ?? config.video_url)
+  const [src, setSrc] = useState(() => config.video_url)
   const videoRef = useRef<HTMLVideoElement>(null)
 
   useEffect(() => {

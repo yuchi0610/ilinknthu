@@ -2,7 +2,7 @@
 
 import { useState } from 'react'
 import ExperienceShell from '@/components/scene/ExperienceShell'
-import { imageBlobUrls, videoBlobUrls } from '@/lib/assetCache'
+import { imageBlobUrls } from '@/lib/assetCache'
 import type { Scene, Ending, NewspaperConfig, DialogConfig, TextConfig, SignatureConfig, AnimationConfig } from '@/lib/types'
 
 const SHELL = 'fixed inset-0 overflow-hidden sm:relative sm:inset-auto sm:overflow-visible sm:max-w-[390px] sm:mx-auto sm:min-h-dvh'
@@ -47,8 +47,8 @@ async function toBlobUrl(url: string): Promise<string> {
   return URL.createObjectURL(blob)
 }
 
-function preloadAll(images: string[], videos: string[], onProgress: (pct: number) => void): Promise<void> {
-  const total = images.length + videos.length
+function preloadAll(images: string[], onProgress: (pct: number) => void): Promise<void> {
+  const total = images.length
   if (!total) { onProgress(100); return Promise.resolve() }
   let done = 0
   const tick = () => { done++; onProgress(Math.round((done / total) * 100)) }
@@ -65,16 +65,10 @@ function preloadAll(images: string[], videos: string[], onProgress: (pct: number
     tick()
   })
 
-  // Videos: fetch → blob URL; <video> plays from memory with zero buffering
-  const videoPromises = videos.map(async url => {
-    try {
-      const blobUrl = await toBlobUrl(url)
-      videoBlobUrls.set(url, blobUrl)
-    } catch {}
-    tick()
-  })
+  // Videos are NOT pre-fetched — loaded on demand when the scene plays.
+  // This avoids downloading videos the user may never reach, saving egress.
 
-  return Promise.all([...imagePromises, ...videoPromises]).then(() => {})
+  return Promise.all(imagePromises).then(() => {})
 }
 
 export default function StartPage() {
@@ -104,9 +98,9 @@ export default function StartPage() {
     sessionStorage.setItem('session_id', id)
     sessionStorage.setItem('scores', JSON.stringify({}))
 
-    // Preload all images and video first-frames before starting
-    const { images, videos } = collectAssets(scenes as Scene[])
-    await preloadAll(images, videos, setProgress)
+    // Preload images only; videos load on-demand to avoid egress waste
+    const { images } = collectAssets(scenes as Scene[])
+    await preloadAll(images, setProgress)
 
     setContent({ scenes, endings })
     setLoading(false)
