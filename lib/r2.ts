@@ -26,12 +26,16 @@ export async function r2PresignedPut(key: string, contentType: string): Promise<
   )
 }
 
-export async function r2List(): Promise<{ name: string }[]> {
+export async function r2List(): Promise<{ name: string; size: number; created_at: string }[]> {
   const { Contents = [] } = await r2.send(new ListObjectsV2Command({ Bucket: R2_BUCKET }))
   return Contents
     .filter(obj => obj.Key && obj.Key !== '.emptyFolderPlaceholder')
     .sort((a, b) => (b.LastModified?.getTime() ?? 0) - (a.LastModified?.getTime() ?? 0))
-    .map(obj => ({ name: obj.Key! }))
+    .map(obj => ({
+      name: obj.Key!,
+      size: obj.Size ?? 0,
+      created_at: obj.LastModified?.toISOString() ?? '',
+    }))
 }
 
 export async function r2Delete(key: string): Promise<void> {

@@ -6,11 +6,10 @@ interface MediaFile {
   name: string; url: string; size: number; created_at: string; type: 'image' | 'video' | 'other'
 }
 
-const SUPABASE_URL = process.env.NEXT_PUBLIC_SUPABASE_URL!
-const ANON_KEY = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
+const R2_PUBLIC_URL = process.env.NEXT_PUBLIC_R2_PUBLIC_URL ?? ''
 
 function publicUrl(name: string) {
-  return `${SUPABASE_URL}/storage/v1/object/public/media/${name}`
+  return `${R2_PUBLIC_URL}/${name}`
 }
 
 function fileType(name: string): MediaFile['type'] {
@@ -48,10 +47,10 @@ export default function MediaPage() {
     const { files: raw } = await res.json()
     const withUrls: MediaFile[] = (raw ?? [])
       .filter((f: { name: string }) => f.name !== '.emptyFolderPlaceholder')
-      .map((f: { name: string; metadata?: { size?: number }; created_at?: string }) => ({
+      .map((f: { name: string; size?: number; created_at?: string }) => ({
         name: f.name,
         url: publicUrl(f.name),
-        size: f.metadata?.size ?? 0,
+        size: f.size ?? 0,
         created_at: f.created_at ?? '',
         type: fileType(f.name),
       }))
@@ -69,7 +68,6 @@ export default function MediaPage() {
     const ext = file.name.split('.').pop()?.toLowerCase() ?? 'bin'
     const filename = `${Date.now()}.${ext}`
 
-    // Step 1: get signed upload URL from server (no file data, tiny request)
     const signRes = await fetch(`/api/upload?filename=${encodeURIComponent(filename)}`)
     const signJson = await signRes.json()
     if (!signRes.ok) {
@@ -79,7 +77,6 @@ export default function MediaPage() {
       return
     }
 
-    // Step 2: upload file directly to Supabase (bypasses Next.js, no size limit)
     const uploadRes = await fetch(signJson.signedUrl, {
       method: 'PUT',
       headers: { 'Content-Type': file.type },
@@ -94,7 +91,7 @@ export default function MediaPage() {
 
     const newFile: MediaFile = {
       name: filename,
-      url: publicUrl(filename),
+      url: signJson.publicUrl ?? publicUrl(filename),
       size: file.size,
       created_at: new Date().toISOString(),
       type: fileType(filename),
@@ -137,9 +134,8 @@ export default function MediaPage() {
       </div>
 
       {listError && (
-        <div className="mb-4 bg-amber-50 border border-amber-200 text-amber-700 text-sm px-4 py-3 rounded-xl space-y-1">
-          <p className="font-medium">{listError}</p>
-          <p className="text-xs text-amber-600">請確認 .env.local 已設定 SUPABASE_SERVICE_ROLE_KEY。</p>
+        <div className="mb-4 bg-red-50 border border-red-200 text-red-600 text-sm px-4 py-3 rounded-xl">
+          <p>{listError}</p>
         </div>
       )}
 
